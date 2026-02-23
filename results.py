@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from utils import get_numerical_analysis
+# logic_calculate에서 변동성 모델 함수 추가 임포트
+from logic_calculate import get_numerical_analysis, get_volatility_models
 
 def render_results(df, config):
     st.subheader(f"🎯 {config['target_date']} 분석 결과")
@@ -10,10 +11,28 @@ def render_results(df, config):
         st.warning("⚠️ 선택한 날짜의 데이터가 존재하지 않습니다.")
         return
 
+    # 데이터 인덱싱 및 가격 추출
     target_idx = df.index.get_loc(target_date_ts)
     actual_price = df.loc[target_date_ts, '종가']
     prev_price = df.iloc[target_idx - config['step_size']]['종가']
     past_prices = df.iloc[:target_idx]['종가'].values
+
+    # --- [신규 추가] GARCH 변동성 분석 섹션 ---
+    st.markdown("### 📉 변동성 분석 (Volatility Models)")
+    # 최근 500일 데이터를 기준으로 변동성 계산
+    vol_results = get_volatility_models(past_prices)
+    
+    v_col1, v_col2 = st.columns(2)
+    with v_col1:
+        st.metric("EGARCH 변동성", f"{vol_results['egarch']:.2f}%")
+        st.caption("하락장에 더 민감하게 반응한 변동성 지수입니다.")
+    with v_col2:
+        st.metric("GJR-GARCH 변동성", f"{vol_results['gjr_garch']:.2f}%")
+        st.caption("상승/하락 비대칭성을 반영한 리스크 수치입니다.")
+    st.divider()
+    # ------------------------------------------
+
+    # 기존 수치해석 모델 계산
     predictions = get_numerical_analysis(past_prices, h=config['step_size'])
     
     comparison_data = []
@@ -32,6 +51,7 @@ def render_results(df, config):
             })
 
     if comparison_data:
+        st.markdown("### 🧮 수치해석 모델 비교")
         comp_df = pd.DataFrame(comparison_data)
         st.table(comp_df.style.applymap(lambda v: 'color: #00C805; font-weight: bold' if '🟢' in str(v) else ('color: #FF4B4B; font-weight: bold' if '🔴' in str(v) else ''), subset=['방향']))
         st.write(f"**전일 대비 변화:** {int(prev_price):,}원 → {int(actual_price):,}원")
