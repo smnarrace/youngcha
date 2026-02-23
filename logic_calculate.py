@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pykrx import stock
 import streamlit as st
+from arch import arch_model
 
 def get_numerical_analysis(prices, h=1):
     if len(prices) < 10: return {"euler": prices[-1], "rk4": prices[-1], "newton": prices[-1], "simpson": 0}
@@ -42,3 +43,24 @@ def calculate_indicators(df):
 def get_tickers():
     tickers = stock.get_market_ticker_list()
     return {stock.get_market_ticker_name(t): t for t in tickers}
+
+
+def get_volatility_models(prices):
+    # 수익률 계산
+    returns = 100 * np.log(prices[1:] / prices[:-1])
+    train_data = returns[-500:] if len(returns) > 500 else returns # 500일 윈도우
+    
+    # EGARCH 모델
+    egarch_m = arch_model(train_data, vol='EGARCH', p=1, o=1, q=1)
+    egarch_res = egarch_m.fit(disp='off')
+    egarch_vol = egarch_res.forecast(horizon=1).variance.iloc[-1].values[0]
+    
+    # GJR-GARCH 모델
+    gjr_m = arch_model(train_data, p=1, o=1, q=1)
+    gjr_res = gjr_m.fit(disp='off')
+    gjr_vol = gjr_res.forecast(horizon=1).variance.iloc[-1].values[0]
+    
+    return {
+        "egarch": np.sqrt(egarch_vol),
+        "gjr_garch": np.sqrt(gjr_vol)
+    }
