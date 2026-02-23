@@ -51,26 +51,32 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if active_vols.get(model_key):
                 v_pct = vol_results.get(model_key, 0)
                 
-                # 🔥 오늘의 예측 (내일 빈 칸에 표시)
-                fig.add_trace(go.Scatter(
-                    x=[pos_tomorrow, pos_tomorrow], 
-                    y=[base_price_today * (1 - v_pct/100), base_price_today * (1 + v_pct/100)],
-                    mode='lines', 
-                    name=f'{label} (내일예측)',
-                    # 🎯 width를 48로 설정하여 캔들 가로 폭과 일치시킴
-                    line=dict(width=48, color=color), 
+                # 🔥 오늘의 예측 (내일 빈 칸)
+                fig.add_trace(go.Bar(
+                    x=[pos_tomorrow], 
+                    y=[(base_price_today * (v_pct/100)) * 2], # 전체 높이 (상단-하단)
+                    base=base_price_today * (1 - v_pct/100), # 막대 시작 지점 (하단값)
+                    name=f'{label} (내일)',
+                    marker_color=color,
+                    width=0.8, # 🎯 핵심: 캔들 너비 비율과 동일하게 설정 (0.8이 기본)
+                    offsetgroup=model_key, # 막대들이 겹치게 설정
+                    showlegend=True
                 ), row=1, col=1)
                 
-                # 🔥 어제의 예측 (오늘 캔들과 겹치게 표시)
-                fig.add_trace(go.Scatter(
-                    x=[pos_today, pos_today], 
-                    y=[base_price_yesterday * (1 - v_pct/100), base_price_yesterday * (1 + v_pct/100)],
-                    mode='lines', 
-                    name=f'{label} (어제예측)',
-                    # 어제 예측은 오늘 캔들 뒤에 배경처럼 깔리도록 폭을 살짝 더 넓게(52) 설정
-                    line=dict(width=52, color=color.replace('0.15', '0.08').replace('0.2', '0.1')),
+                # 🔥 어제의 예측 (오늘 캔들)
+                fig.add_trace(go.Bar(
+                    x=[pos_today], 
+                    y=[(base_price_yesterday * (v_pct/100)) * 2],
+                    base=base_price_yesterday * (1 - v_pct/100),
+                    name=f'{label} (어제)',
+                    marker_color=color.replace('0.15', '0.1').replace('0.2', '0.15'),
+                    width=0.8, # 🎯 캔들 너비와 일치
+                    offsetgroup=model_key,
                     showlegend=False
                 ), row=1, col=1)
+
+    # 🎯 중요: 막대들이 겹쳐서 보이도록 레이아웃 수정
+    fig.update_layout(barmode='overlay')
                 
     # 3. 캔들스틱
     fig.add_trace(go.Candlestick(
