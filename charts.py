@@ -51,30 +51,37 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if active_vols.get(model_key):
                 v_pct = vol_results.get(model_key, 0)
                 
-                # 🔥 오늘의 예측 (내일 빈 칸)
+                # 🔥 오늘의 예측 (내일 빈 칸 - 더 진하게)
                 fig.add_trace(go.Bar(
                     x=[pos_tomorrow], 
-                    y=[(base_price_today * (v_pct/100)) * 2], # 전체 높이 (상단-하단)
-                    base=base_price_today * (1 - v_pct/100), # 막대 시작 지점 (하단값)
+                    y=[(base_price_today * (v_pct/100)) * 2], 
+                    base=base_price_today * (1 - v_pct/100), 
                     name=f'{label} (내일)',
-                    marker_color=color,
-                    width=0.8, # 🎯 핵심: 캔들 너비 비율과 동일하게 설정 (0.8이 기본)
-                    offsetgroup=model_key, # 막대들이 겹치게 설정
+                    # 🎯 불투명도(opacity)를 높여서 진하게 표시 (0.6 ~ 0.8 추천)
+                    marker=dict(
+                        color=color.replace('0.15', '0.6').replace('0.2', '0.6'), 
+                        line=dict(width=0) # 🎯 윤곽선 제거
+                    ),
+                    width=0.8,
+                    offsetgroup=model_key,
                     showlegend=True
                 ), row=1, col=1)
                 
-                # 🔥 어제의 예측 (오늘 캔들)
+                # 🔥 어제의 예측 (오늘 캔들 - 더 투명하게 배경처럼)
                 fig.add_trace(go.Bar(
                     x=[pos_today], 
                     y=[(base_price_yesterday * (v_pct/100)) * 2],
                     base=base_price_yesterday * (1 - v_pct/100),
                     name=f'{label} (어제)',
-                    marker_color=color.replace('0.15', '0.1').replace('0.2', '0.15'),
-                    width=0.8, # 🎯 캔들 너비와 일치
+                    # 🎯 기존처럼 연하게 유지하여 캔들을 방해하지 않음
+                    marker=dict(
+                        color=color, 
+                        line=dict(width=0) # 🎯 윤곽선 제거
+                    ),
+                    width=0.8,
                     offsetgroup=model_key,
                     showlegend=False
                 ), row=1, col=1)
-
     # 🎯 중요: 막대들이 겹쳐서 보이도록 레이아웃 수정
     fig.update_layout(barmode='overlay')
                 
