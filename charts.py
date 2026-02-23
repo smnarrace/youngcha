@@ -8,7 +8,11 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     view_df = df.tail(40)
     
     # 🎯 수정: 차트에 사용할 통합 x축 라벨 생성 (모든 trace에서 이 리스트를 사용해야 함)
-    x_labels = view_df.index.strftime('%Y-%m-%d').tolist()
+    # view_df 정의 바로 아래에 추가
+    x_labels = view_df.index.strftime('%Y-%m-%d').tolist() # 날짜를 '2024-01-01' 형태 문자열로 통일
+    pos_today = x_labels[-1]
+    pos_yesterday = x_labels[-2] if len(x_labels) > 1 else x_labels[-1]
+
     
     target_date = config['target_date']
     target_date_ts = pd.Timestamp(target_date).normalize()
@@ -31,10 +35,6 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             base_price_today = df['종가'].iloc[-1]
             
         base_price_yesterday = df['종가'].iloc[-2] if len(df) > 1 else df['종가'].iloc[-1]
-        
-        # 🎯 수정: x_labels에서 위치 추출
-        pos_today = x_labels[-1]
-        pos_yesterday = x_labels[-2] if len(x_labels) > 1 else x_labels[-1]
 
         settings = [
             ('egarch', 'rgba(255, 0, 0, 0.15)', 'EGARCH'),
@@ -95,7 +95,19 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if rel_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[rel_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
 
-    fig.update_layout(template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10), showlegend=True, xaxis_rangeslider_visible=False)
-    fig.update_xaxes(type='category', tickangle=-45)
+    # 🎯 수정: 레이아웃에서 카테고리 순서를 강제로 x_labels 순서에 맞춤
+    fig.update_layout(
+        template="plotly_dark", 
+        height=600, 
+        margin=dict(l=10,r=10,t=10,b=10), 
+        showlegend=True, 
+        xaxis_rangeslider_visible=False,
+        xaxis=dict(
+            type='category',
+            categoryorder='array',
+            categoryarray=x_labels, # 🎯 이 리스트 순서대로 칸을 배치하라는 뜻
+            tickangle=-45
+        )
+    )
     
     return fig
