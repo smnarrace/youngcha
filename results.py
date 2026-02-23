@@ -4,7 +4,7 @@ import pandas as pd
 # 인자에 vol_results와 predictions를 추가하여 main.py로부터 전달받습니다.
 def render_results(df, config, vol_results=None, predictions=None):
     st.subheader(f"🎯 {config['target_date']} 분석 결과")
-    target_date_ts = pd.Timestamp(config['target_date'])
+    target_date_ts = pd.Timestamp(config['target_date']).normalize()
     
     if target_date_ts not in df.index:
         st.warning("⚠️ 선택한 날짜의 데이터가 존재하지 않습니다.")
