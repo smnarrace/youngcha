@@ -6,10 +6,13 @@ import streamlit as st
 def get_numerical_analysis(prices, h=1):
     if len(prices) < 10: return {"euler": prices[-1], "rk4": prices[-1], "newton": prices[-1], "simpson": 0}
     y = prices
-    slope = (y[-1] - y[-h-1]) / h if len(y) > h else (y[-1] - y[-2])
+    slope_simple = (y[-1] - y[-h-1]) / h if len(y) > h else (y[-1] - y[-2])
+    euler = y[-1] + h * slope_simple
     
-    euler = y[-1] + h * slope
-    k1, k2, k3, k4 = slope, slope * 1.01, slope * 1.01, slope * 1.02
+    k1 = y[-1] - y[-2]          # 최근 1일 변화량
+    k2 = (y[-1] - y[-3]) / 2    # 최근 2일 평균 변화량
+    k3 = (y[-2] - y[-4]) / 2    # 전일 기준 2일 평균 변화량
+    k4 = (y[-1] - y[-5]) / 4 if len(y) > 5 else k1
     rk4 = y[-1] + (h/6) * (k1 + 2*k2 + 2*k3 + k4)
     
     f_x = y[-1] - y[-2]
