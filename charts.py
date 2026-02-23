@@ -93,13 +93,21 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_L'], name="BB하단", line=dict(width=1, color='gray'), fill='tonexty'), row=1, col=1)
 
     # 7. 분석 범위 강조
-    if target_date_ts in df.index:
-        view_start_date = view_df.index[0]
-        if target_date_ts >= view_start_date:
-            rel_idx = view_df.index.get_loc(target_date_ts)
-            if rel_idx > 0:
-                fig.add_vrect(x0=x_labels[0], x1=x_labels[rel_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
-
+    target_date_str = target_date_ts.strftime('%Y-%m-%d')
+    
+    if target_date_str in x_labels:
+        # x_labels 내에서의 위치를 찾음
+        target_idx = x_labels.index(target_date_str)
+        if target_idx > 0:
+            fig.add_vrect(
+                x0=x_labels[0], 
+                x1=x_labels[target_idx-1], 
+                fillcolor="rgba(173, 216, 230, 0.2)", 
+                opacity=0.3, 
+                layer="below", 
+                line_width=0, 
+                row=1, col=1
+            )
     # 🎯 8. 레이아웃 최종 업데이트 (extended_x_labels 적용)
     fig.update_layout(
         template="plotly_dark", 
