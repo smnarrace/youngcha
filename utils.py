@@ -51,12 +51,12 @@ def get_volatility_models(prices):
     train_data = returns[-500:] if len(returns) > 500 else returns # 500일 윈도우
     
     # EGARCH 모델
-    egarch_m = arch_model(train_data, vol='EGARCH', p=1, o=1, q=1)
+    egarch_m = arch_model(train_data, vol='EGARCH', p=1, o=1, q=1, dist='t')
     egarch_res = egarch_m.fit(disp='off')
     egarch_vol = egarch_res.forecast(horizon=1).variance.iloc[-1].values[0]
     
     # GJR-GARCH 모델
-    gjr_m = arch_model(train_data, p=1, o=1, q=1)
+    gjr_m = arch_model(train_data, p=1, o=1, q=1, dist='t')
     gjr_res = gjr_m.fit(disp='off')
     gjr_vol = gjr_res.forecast(horizon=1).variance.iloc[-1].values[0]
     
