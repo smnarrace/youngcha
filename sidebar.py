@@ -28,6 +28,7 @@ def render_sidebar():
         step_size = st.radio("⏱️ 예측 주기 설정", [1, 5], format_func=lambda x: f"{x}일 기준")
         st.write("---")
 
+        # 1. 수치해석 모델 섹션
         st.subheader(" 🧪 수치해석 모델")
         c1, c2 = st.columns(2)
         models = {
@@ -35,6 +36,14 @@ def render_sidebar():
             "newton": c1.checkbox("뉴턴", value=False),
             "euler": c2.checkbox("오일러", value=False),
             "simpson": c2.checkbox("심슨", value=False)
+        }
+
+        # 2. [신규 추가] 변동성 모델 섹션
+        st.subheader(" 📉 변동성 모델")
+        cv1, cv2 = st.columns(2)
+        vol_models = {
+            "egarch": cv1.checkbox("EGARCH", value=False),
+            "gjr_garch": cv2.checkbox("GJR-GARCH", value=False)
         }
 
         st.subheader(" 📊 보조지표")
@@ -65,8 +74,9 @@ def render_sidebar():
         st.subheader("🖼️ 시각화 옵션")
         show_signals = st.checkbox("차트 시그널(원) 표시", value=False)
         
+    # 마지막에 vol_models를 딕셔너리에 포함해서 반환
     return {
         "target_date": target_date, "selected_name": selected_name, "ticker": ticker,
-        "step_size": step_size, "models": models, "show_bb": show_bb, 
-        "show_rsi": show_rsi, "ma_settings": ma_settings, "show_signals": show_signals
+        "step_size": step_size, "models": models, "vol_models": vol_models, # 여기 추가됨
+        "show_bb": show_bb, "show_rsi": show_rsi, "ma_settings": ma_settings, "show_signals": show_signals
     }
