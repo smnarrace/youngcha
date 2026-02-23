@@ -89,4 +89,3 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     fig.update_layout(template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10), showlegend=True, xaxis_rangeslider_visible=False)
     fig.update_xaxes(type='category', tickangle=-45)
     return fig
-이 chart.py 코드에서 YYYY-MM-DD로 출력되게끔 수정은 어떻게해야해
