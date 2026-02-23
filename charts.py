@@ -32,22 +32,25 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         base_price_yesterday = df['종가'].iloc[-2] if len(df) > 1 else df['종가'].iloc[-1]
         
         # 차트 표시 인덱스 (마지막이 오늘, 그 앞이 어제)
-        idx_today = view_df.index[-1]
-        idx_yesterday = view_df.index[-2] if len(view_df) > 1 else view_df.index[-1]
+        
+        # 차트 표시 인덱스 (날짜 리스트에서 직접 추출하여 카테고리 매칭)
+        x_list = view_df.index.tolist()
+        pos_today = x_list[-1]
+        pos_yesterday = x_list[-2] if len(x_list) > 1 else x_list[-1]
 
         # EGARCH 구름대 (빨간색)
         if active_vols.get('egarch') and 'egarch' in vol_results:
             v_pct = vol_results['egarch']
             # 오늘 범위
             fig.add_trace(go.Scatter(
-                x=[idx_today, idx_today], 
+                x=[pos_today, pos_today], 
                 y=[base_price_today * (1 - v_pct/100), base_price_today * (1 + v_pct/100)],
                 mode='lines', name='EGARCH (오늘)',
                 line=dict(width=30, color='rgba(255, 0, 0, 0.15)'),
             ), row=1, col=1)
             # 어제 범위
             fig.add_trace(go.Scatter(
-                x=[idx_yesterday, idx_yesterday], 
+                x=[pos_yesterday, pos_yesterday], 
                 y=[base_price_yesterday * (1 - v_pct/100), base_price_yesterday * (1 + v_pct/100)],
                 mode='lines', name='EGARCH (어제)',
                 line=dict(width=30, color='rgba(255, 0, 0, 0.1)'),
@@ -59,14 +62,14 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             v_pct = vol_results['gjr_garch']
             # 오늘 범위
             fig.add_trace(go.Scatter(
-                x=[idx_today, idx_today],
+                x=[pos_today, pos_today],
                 y=[base_price_today * (1 - v_pct/100), base_price_today * (1 + v_pct/100)],
                 mode='lines', name='GJR-GARCH (오늘)',
                 line=dict(width=15, color='rgba(0, 0, 255, 0.2)'),
             ), row=1, col=1)
             # 어제 범위
             fig.add_trace(go.Scatter(
-                x=[idx_yesterday, idx_yesterday],
+                x=[pos_yesterday, pos_yesterday],
                 y=[base_price_yesterday * (1 - v_pct/100), base_price_yesterday * (1 + v_pct/100)],
                 mode='lines', name='GJR-GARCH (어제)',
                 line=dict(width=15, color='rgba(0, 0, 255, 0.1)'),
