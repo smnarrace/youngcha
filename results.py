@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 # logic_calculate에서 변동성 모델 함수 추가 임포트
-from logic_calculate import get_numerical_analysis, get_volatility_models
+from utils import get_numerical_analysis, get_volatility_models
 
 def render_results(df, config):
     st.subheader(f"🎯 {config['target_date']} 분석 결과")
