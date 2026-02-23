@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from pykrx import stock
 import datetime
 # 필요한 계산 함수들을 utils(또는 logic_calculate)에서 가져옵니다.
