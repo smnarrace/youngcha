@@ -55,19 +55,23 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                 fig.add_trace(go.Scatter(
                     x=[pos_tomorrow, pos_tomorrow], 
                     y=[base_price_today * (1 - v_pct/100), base_price_today * (1 + v_pct/100)],
-                    mode='lines', name=f'{label} (내일예측)',
-                    line=dict(width=30, color=color),
+                    mode='lines', 
+                    name=f'{label} (내일예측)',
+                    # 🎯 width를 48로 설정하여 캔들 가로 폭과 일치시킴
+                    line=dict(width=48, color=color), 
                 ), row=1, col=1)
                 
                 # 🔥 어제의 예측 (오늘 캔들과 겹치게 표시)
                 fig.add_trace(go.Scatter(
                     x=[pos_today, pos_today], 
                     y=[base_price_yesterday * (1 - v_pct/100), base_price_yesterday * (1 + v_pct/100)],
-                    mode='lines', name=f'{label} (어제예측)',
-                    line=dict(width=30, color=color.replace('0.15', '0.08').replace('0.2', '0.1')),
+                    mode='lines', 
+                    name=f'{label} (어제예측)',
+                    # 어제 예측은 오늘 캔들 뒤에 배경처럼 깔리도록 폭을 살짝 더 넓게(52) 설정
+                    line=dict(width=52, color=color.replace('0.15', '0.08').replace('0.2', '0.1')),
                     showlegend=False
                 ), row=1, col=1)
-
+                
     # 3. 캔들스틱
     fig.add_trace(go.Candlestick(
         x=x_labels, open=view_df['시가'], high=view_df['고가'], 
