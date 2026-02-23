@@ -26,21 +26,22 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     else:
         fig = make_subplots(rows=1, cols=1)
 
-    # 2. 변동성 구름대 (Volatility Cloud)
+    # 2. 변동성 구름대 (go.Bar 방식)
     active_vols = config.get('vol_models', {})
     
     if vol_results and predictions and any(active_vols.values()):
-        # [오늘의 예측 기준가] -> 내일 위치(pos_tomorrow)에 표시
-        base_price_today = None
+        # [오늘의 예측 기준가] -> 내일 위치용 (수치해석 모델 결과값)
+        base_price_tomorrow = None
         for m, active in config.get('models', {}).items():
             if active and m in predictions:
-                base_price_today = predictions[m]
+                base_price_tomorrow = predictions[m]
                 break
-        if base_price_today is None:
-            base_price_today = df['종가'].iloc[-1]
+        if base_price_tomorrow is None:
+            base_price_tomorrow = df['종가'].iloc[-1]
             
-        # [어제의 예측 기준가] -> 오늘 위치(pos_today)에 표시
-        base_price_yesterday = df['종가'].iloc[-2] if len(df) > 1 else df['종가'].iloc[-1]
+        # [어제의 예측 기준가] -> 오늘 위치용 (전일 종가 기준)
+        # 🎯 어제 시점의 예측은 어제 종가를 기준으로 해야 오늘 캔들과 정확히 일치합니다.
+        base_price_today_overlay = df['종가'].iloc[-2] if len(df) > 1 else df['종가'].iloc[-1]
 
         settings = [
             ('egarch', 'rgba(255, 0, 0, 0.15)', 'EGARCH'),
@@ -51,93 +52,75 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if active_vols.get(model_key):
                 v_pct = vol_results.get(model_key, 0)
                 
-                # 🔥 오늘의 예측 (내일 빈 칸 - 더 진하게)
+                # 🔥 오늘의 예측 (내일 빈 칸 - 윤곽선 없고 진하게)
                 fig.add_trace(go.Bar(
                     x=[pos_tomorrow], 
-                    y=[(base_price_today * (v_pct/100)) * 2], 
-                    base=base_price_today * (1 - v_pct/100), 
-                    name=f'{label} (내일)',
-                    # 🎯 불투명도(opacity)를 높여서 진하게 표시 (0.6 ~ 0.8 추천)
+                    y=[(base_price_tomorrow * (v_pct/100)) * 2], 
+                    base=base_price_tomorrow * (1 - v_pct/100), 
+                    name=f'{label} (내일예측)',
                     marker=dict(
                         color=color.replace('0.15', '0.6').replace('0.2', '0.6'), 
-                        line=dict(width=0) # 🎯 윤곽선 제거
+                        line=dict(width=0)
                     ),
                     width=0.8,
                     offsetgroup=model_key,
-                    showlegend=True
                 ), row=1, col=1)
                 
-                # 🔥 어제의 예측 (오늘 캔들 - 더 투명하게 배경처럼)
+                # 🔥 어제의 예측 (오늘 캔들 오버레이 - 윤곽선 없고 연하게)
                 fig.add_trace(go.Bar(
                     x=[pos_today], 
-                    y=[(base_price_yesterday * (v_pct/100)) * 2],
-                    base=base_price_yesterday * (1 - v_pct/100),
-                    name=f'{label} (어제)',
-                    # 🎯 기존처럼 연하게 유지하여 캔들을 방해하지 않음
-                    marker=dict(
-                        color=color, 
-                        line=dict(width=0) # 🎯 윤곽선 제거
-                    ),
+                    y=[(base_price_today_overlay * (v_pct/100)) * 2],
+                    base=base_price_today_overlay * (1 - v_pct/100),
+                    name=f'{label} (어제예측)',
+                    marker=dict(color=color, line=dict(width=0)),
                     width=0.8,
                     offsetgroup=model_key,
                     showlegend=False
                 ), row=1, col=1)
-    # 🎯 중요: 막대들이 겹쳐서 보이도록 레이아웃 수정
-    fig.update_layout(barmode='overlay')
-                
+
+        # 🎯 수치해석 모델 예측 점 표시 (내일 칸 중앙)
+        for m_key, m_val in predictions.items():
+            if config['models'].get(m_key):
+                fig.add_trace(go.Scatter(
+                    x=[pos_tomorrow], y=[m_val],
+                    mode='markers+text',
+                    name=f'{m_key.upper()} 예측가',
+                    marker=dict(size=10, color='yellow', symbol='circle', line=dict(width=1, color='white')),
+                    text=[f"{m_val:,.0f}"], textposition="top center"
+                ), row=1, col=1)
+
     # 3. 캔들스틱
     fig.add_trace(go.Candlestick(
         x=x_labels, open=view_df['시가'], high=view_df['고가'], 
         low=view_df['저가'], close=view_df['종가'], name="캔들"
     ), row=1, col=1)
 
-    # 4. RSI
+    # ... (RSI, 이평선, 볼린저 밴드 로직 동일) ...
     if config.get('show_rsi'):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['RSI'], name="RSI", line=dict(color='#FFD700', width=1.5)), row=2, col=1)
-        fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
-        fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
-
-    # 5. 이평선
+    
     for s in config.get('ma_settings', []):
-        col_n = f"{s['type']}{s['period']}"
         line_data = df['종가'].rolling(window=s['period']).mean() if s['type'] == "MA" else df['종가'].ewm(span=s['period'], adjust=False).mean()
-        fig.add_trace(go.Scatter(x=x_labels, y=line_data.tail(40), name=col_n, line=dict(color=s['color'], width=s['width'])), row=1, col=1)
+        fig.add_trace(go.Scatter(x=x_labels, y=line_data.tail(40), name=f"{s['type']}{s['period']}", line=dict(color=s['color'], width=s['width'])), row=1, col=1)
 
-    # 6. 볼린저 밴드
     if config.get('show_bb'):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_U'], name="BB상단", line=dict(width=1, color='gray')), row=1, col=1)
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_L'], name="BB하단", line=dict(width=1, color='gray'), fill='tonexty'), row=1, col=1)
 
-    # 7. 분석 범위 강조 (target_date_ts 정의 및 에러 방지 처리)
+    # 7. 분석 범위 강조
     target_date_obj = config.get('target_date')
     if target_date_obj:
         target_date_str = target_date_obj.strftime('%Y-%m-%d')
         if target_date_str in x_labels:
             target_idx = x_labels.index(target_date_str)
             if target_idx > 0:
-                fig.add_vrect(
-                    x0=x_labels[0], 
-                    x1=x_labels[target_idx-1], 
-                    fillcolor="rgba(173, 216, 230, 0.2)", 
-                    opacity=0.3, 
-                    layer="below", 
-                    line_width=0, 
-                    row=1, col=1
-                )
+                fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
 
     # 8. 레이아웃 최종 업데이트
     fig.update_layout(
-        template="plotly_dark", 
-        height=600, 
-        margin=dict(l=10,r=10,t=10,b=10), 
-        showlegend=True, 
-        xaxis_rangeslider_visible=False,
-        xaxis=dict(
-            type='category',
-            categoryorder='array',
-            categoryarray=extended_x_labels,
-            tickangle=-45
-        )
+        template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
+        barmode='overlay', showlegend=True, xaxis_rangeslider_visible=False,
+        xaxis=dict(type='category', categoryorder='array', categoryarray=extended_x_labels, tickangle=-45)
     )
     
     return fig
