@@ -20,8 +20,7 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     # 위치 고정
     pos_tomorrow = next_date_str  # 오늘의 예측이 표시될 내일 칸
     pos_today = x_labels[-1]      # 어제의 예측이 표시될 오늘 캔들 칸
-    pos_yesterday = x_labels[-2] if len(x_labels) > 1 else x_labels[-1]
-
+    
     if config.get('show_rsi'):
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
     else:
@@ -69,7 +68,7 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                     showlegend=False
                 ), row=1, col=1)
 
-    # 3. 캔들스틱 (기존 40개 데이터만 표시)
+    # 3. 캔들스틱
     fig.add_trace(go.Candlestick(
         x=x_labels, open=view_df['시가'], high=view_df['고가'], 
         low=view_df['저가'], close=view_df['종가'], name="캔들"
@@ -92,23 +91,24 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_U'], name="BB상단", line=dict(width=1, color='gray')), row=1, col=1)
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_L'], name="BB하단", line=dict(width=1, color='gray'), fill='tonexty'), row=1, col=1)
 
-    # 7. 분석 범위 강조
-    target_date_str = target_date_ts.strftime('%Y-%m-%d')
-    
-    if target_date_str in x_labels:
-        # x_labels 내에서의 위치를 찾음
-        target_idx = x_labels.index(target_date_str)
-        if target_idx > 0:
-            fig.add_vrect(
-                x0=x_labels[0], 
-                x1=x_labels[target_idx-1], 
-                fillcolor="rgba(173, 216, 230, 0.2)", 
-                opacity=0.3, 
-                layer="below", 
-                line_width=0, 
-                row=1, col=1
-            )
-    # 🎯 8. 레이아웃 최종 업데이트 (extended_x_labels 적용)
+    # 7. 분석 범위 강조 (target_date_ts 정의 및 에러 방지 처리)
+    target_date_obj = config.get('target_date')
+    if target_date_obj:
+        target_date_str = target_date_obj.strftime('%Y-%m-%d')
+        if target_date_str in x_labels:
+            target_idx = x_labels.index(target_date_str)
+            if target_idx > 0:
+                fig.add_vrect(
+                    x0=x_labels[0], 
+                    x1=x_labels[target_idx-1], 
+                    fillcolor="rgba(173, 216, 230, 0.2)", 
+                    opacity=0.3, 
+                    layer="below", 
+                    line_width=0, 
+                    row=1, col=1
+                )
+
+    # 8. 레이아웃 최종 업데이트
     fig.update_layout(
         template="plotly_dark", 
         height=600, 
@@ -118,7 +118,7 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         xaxis=dict(
             type='category',
             categoryorder='array',
-            categoryarray=extended_x_labels, # 미래 날짜를 포함한 리스트 사용
+            categoryarray=extended_x_labels,
             tickangle=-45
         )
     )
