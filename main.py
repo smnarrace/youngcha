@@ -34,10 +34,13 @@ if not df.empty:
     
     # --- 핵심: 데이터 계산부 분리 ---
     # 차트와 결과창에서 공통으로 쓸 데이터를 여기서 미리 계산합니다.
-    target_date_ts = pd.Timestamp(config['target_date'])
+    target_date_ts = pd.Timestamp(config['target_date']).normalize()
     
     if target_date_ts in df.index:
         target_idx = df.index.get_loc(target_date_ts)
+        if target_idx <10:
+            st.error("데이터가 너무 적어 분석을 시작할 수 없습니다.")
+            st.stop()
         past_prices = df.iloc[:target_idx + 1]['종가'].values # 기준일 포함 데이터
         
         # 수치해석 및 변동성 모델 계산
