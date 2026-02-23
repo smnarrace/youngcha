@@ -78,15 +78,33 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                     showlegend=False
                 ), row=1, col=1)
 
+        # 🎯 모델별 고유 컬러 및 스타일 설정
+        model_styles = {
+            'rk4': {'color': '#FFD700', 'symbol': 'diamond'},      # 골드 / 다이아몬드 (가장 정교)
+            'euler': {'color': '#00FF00', 'symbol': 'circle'},     # 라임 / 원 (기본)
+            'newton': {'color': '#FF00FF', 'symbol': 'x'},          # 마젠타 / X
+            'simpson': {'color': '#00FFFF', 'symbol': 'star'}      # 사이언 / 별
+        }
+
         # 🎯 수치해석 모델 예측 점 표시 (내일 칸 중앙)
         for m_key, m_val in predictions.items():
             if config['models'].get(m_key):
+                style = model_styles.get(m_key, {'color': 'white', 'symbol': 'circle'})
+                
                 fig.add_trace(go.Scatter(
-                    x=[pos_tomorrow], y=[m_val],
+                    x=[pos_tomorrow], 
+                    y=[m_val],
                     mode='markers+text',
                     name=f'{m_key.upper()} 예측가',
-                    marker=dict(size=10, color='yellow', symbol='circle', line=dict(width=1, color='white')),
-                    text=[f"{m_val:,.0f}"], textposition="top center"
+                    marker=dict(
+                        size=12, 
+                        color=style['color'], 
+                        symbol=style['symbol'], 
+                        line=dict(width=1.5, color='white') # 가독성을 위한 테두리
+                    ),
+                    text=[f"{m_val:,.0f}"], 
+                    textposition="top center",
+                    textfont=dict(color=style['color'], size=11) # 텍스트 색상도 모델색과 일치
                 ), row=1, col=1)
 
     # 3. 캔들스틱
