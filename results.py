@@ -44,7 +44,7 @@ def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=6
 
 # 2. 메인 결과 렌더링 함수
 def render_results(df, config, vol_results=None, predictions=None):
-    st.subheader(f"🎯 AI 분석 리포트 (전천후 엔진 V2)")
+    st.subheader(f"🎯 AI 분석 결 ")
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
     
     if target_date_ts not in df.index:
