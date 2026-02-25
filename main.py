@@ -86,13 +86,32 @@ if not df.empty:
                     ]
                     X_static_list.append(static_feats)
                     # main.py의 학습 루프 내부
+                    # main.py 내 '모델 전천후 학습 시작' 버튼 내부 루프 수정
                     h = config['step_size']
-                    # idx 시점에서 h일 뒤의 가격이 현재(idx-1) 대비 몇 % 변했는지 계산
-                    if idx + h - 1 < len(df):
+                    
+                    for i, idx in enumerate(valid_indices):
+                        if idx + h > len(df): continue # 미래 데이터가 부족하면 스킵
+                        
+                        # 1) [전략 1 & 2] 정적 데이터 가공
+                        curr_p = df.iloc[idx - 1]['종가']
+                        # [수정] 주기 h를 전달하여 계산
+                        num_res = get_numerical_analysis(df.iloc[:idx]['종가'].values, h=h)
+                        vol_res = get_volatility_models(df.iloc[:idx]['종가'].values)
+                        
+                        static_feats = [
+                            to_pct(num_res.get('euler', curr_p), curr_p),
+                            to_pct(num_res.get('rk4', curr_p), curr_p),
+                            to_pct(num_res.get('newton', curr_p), curr_p),
+                            vol_res.get('egarch', 0),
+                            vol_res.get('gjr_garch', 0),
+                            df.iloc[idx - 1].get('RSI', 50),
+                            df.iloc[idx - 1].get('거래량_변동률', 0)
+                        ]
+                        X_static_list.append(static_feats)
+                        
+                        # 2) [수정] h일 뒤의 누적 등락률을 정답으로 설정
                         future_p = df.iloc[idx + h - 1]['종가']
-                        target_return = ((future_p - curr_p) / curr_p) * 100
-                        y_list.append(target_return)
-                    progress_bar.progress((i + 1) / len(valid_indices))
+                        y_list.append(to_pct(future_p, curr_p))
                 
                 st.session_state.hybrid_model.train(
                     np.nan_to_num(np.array(X_seq_list, dtype=np.float32).reshape(-1, window_size, 1)),
