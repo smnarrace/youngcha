@@ -39,10 +39,24 @@ def calculate_indicators(df):
     df['RSI'] = 100 - (100 / (1 + rs))
     return df
 
+# utils.py 의 get_tickers 함수 수정
 @st.cache_data
 def get_tickers():
-    tickers = stock.get_market_ticker_list()
-    return {stock.get_market_ticker_name(t): t for t in tickers}
+    try:
+        # 오늘 기준으로 가장 가까운 영업일의 종목 리스트를 가져옴
+        today = datetime.datetime.now().strftime("%Y%m%d")
+        tickers = stock.get_market_ticker_list(today)
+        
+        # 만약 휴장일이라 리스트가 비어있다면, 하루 전 날짜로 재시도
+        if not tickers:
+            yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y%m%d")
+            tickers = stock.get_market_ticker_list(yesterday)
+            
+        return {stock.get_market_ticker_name(t): t for t in tickers}
+    except:
+        # 최후의 수단: 가장 최근 영업일 종목 리스트 (날짜 미지정)
+        tickers = stock.get_market_ticker_list()
+        return {stock.get_market_ticker_name(t): t for t in tickers}
 
 # utils.py 의 변동성 함수 업그레이드 (Winsorizing & Dynamic Cap)
 def get_volatility_models(prices):
