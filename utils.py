@@ -64,16 +64,14 @@ def get_tickers():
 
     try:
         # 2. 직접 계산한 안전한 날짜로 호출 (IndexError 방지)
-        tickers = stock.get_market_ticker_list(target_date, market="KOSPI") # 코스피 기준
+        tickers = stock.get_market_ticker_list(target_date, market="ALL") # 코스피 기준
         
-        # 만약 코스피가 비어있다면 코스닥도 시도
+        # 만약 해당 날짜 데이터가 없다면 10일치 루프를 돌며 가장 최근 데이터를 찾음
         if not tickers:
-            tickers = stock.get_market_ticker_list(target_date, market="KOSDAQ")
-            
-        if not tickers:
-            # 그래도 비어있다면 아예 3일 전으로 강제 후퇴 (연휴 대비)
-            safe_date = (now - datetime.timedelta(days=3)).strftime("%Y%m%d")
-            tickers = stock.get_market_ticker_list(safe_date)
+            for i in range(1, 11):
+                past_date = (target_dt - datetime.timedelta(days=i)).strftime("%Y%m%d")
+                tickers = stock.get_market_ticker_list(past_date, market="ALL")
+                if tickers: break
 
         return {stock.get_market_ticker_name(t): t for t in tickers}
         
