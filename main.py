@@ -47,12 +47,14 @@ if not df.empty:
         max_idx = df.index.get_loc(target_date_ts) if target_date_ts in df.index else len(df) - 1
 
         # 데이터 다각화 샘플링
-        recent_indices = list(range(max_idx - 30, max_idx))
+        recent_indices = list(range(max_idx - 100, max_idx))
         year_ago_idx = max_idx - 250
-        hist_indices = list(range(year_ago_idx - 20, year_ago_idx)) if year_ago_idx > 120 else []
-        
-        valid_indices = hist_indices + recent_indices
-        random.shuffle(valid_indices)
+        hist_indices = list(range(year_ago_idx - 50, year_ago_idx)) if year_ago_idx > 150 else []
+        two_years_ago_idx = max_idx - 500
+        hist_indices_2 = list(range(two_years_ago_idx - 50, two_years_ago_idx)) if two_years_ago_idx > 150 else []
+    
+        valid_indices = hist_indices + hist_indices_2 + recent_indices
+        random.shuffle(valid_indices) # 섞어야 골고루 배웁니다.
 
         if len(valid_indices) < 20:
             st.sidebar.error("데이터가 부족합니다.")
