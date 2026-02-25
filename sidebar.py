@@ -44,17 +44,17 @@ def render_sidebar_inputs():
 def render_sidebar_actions(df, target_date_ts, config):
     with st.sidebar:
         st.write("---")
-        st.subheader("🤖 AI 하이브리드 엔진 (Residual v2)")
+        st.subheader("🤖 AI 하이브리드 엔진 (Dynamic v3)")
         
         if st.session_state.hybrid_model.is_trained:
-            st.success("✅ 전천후 잔차 모델 학습 완료")
+            st.success("✅ 전천후 가중치 모델 학습 완료")
         else:
             st.info("💡 모델을 학습시켜주세요.")
 
         def to_pct(val, base):
             return ((val - base) / base) * 100 if base != 0 else 0
 
-        # --- 버튼 1: 모델 학습 (3대 모델 잔차 로직) ---
+        # --- 버튼 1: 모델 학습 ---
         if st.button("🚀 모델 전천후 학습 시작"):
             window_size, h = 60, config['step_size']
             max_idx = df.index.get_loc(target_date_ts)
@@ -68,9 +68,9 @@ def render_sidebar_actions(df, target_date_ts, config):
             if len(valid_indices) < 20:
                 st.error("데이터 부족")
             else:
-                with st.spinner(f"{len(valid_indices)}개 샘플로 잔차 학습 중..."):
+                with st.spinner(f"{len(valid_indices)}개 샘플로 자율 가중치 학습 중..."):
                     X_seq_list, X_static_list = [], []
-                    y_actual_list, y_base_list = [], [] # 잔차 계산을 위한 두 리스트
+                    y_actual_list, y_base_list = [], [] 
 
                     for idx in valid_indices:
                         if idx + h >= len(df) or idx < window_size: continue
@@ -79,18 +79,15 @@ def render_sidebar_actions(df, target_date_ts, config):
                         num_res = get_numerical_analysis(df.iloc[:idx]['종가'].values, h=h)
                         vol_res = get_volatility_models(df.iloc[:idx]['종가'].values)
 
-                        # [핵심] 3대 수치 모델 평균 베이스라인 계산
                         euler_p = to_pct(num_res.get('euler', curr_p), curr_p)
                         rk4_p = to_pct(num_res.get('rk4', curr_p), curr_p)
                         newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
                         base_p = (euler_p + rk4_p + newton_p) / 3
 
-                        # 실제 등락률
                         actual_p = to_pct(df.iloc[idx + h - 1]['종가'], curr_p)
 
                         static_feats = [
-                            base_p, # 평균 베이스라인 자체도 중요한 정보
-                            euler_p, rk4_p, newton_p,
+                            base_p, euler_p, rk4_p, newton_p,
                             vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0),
                             df.iloc[idx - 1].get('RSI', 50),
                             df.iloc[idx - 1].get('거래량_변동률', 0)
@@ -101,21 +98,20 @@ def render_sidebar_actions(df, target_date_ts, config):
                         y_actual_list.append(actual_p)
                         y_base_list.append(base_p)
                     
-                    # 모델 학습 호출 (실제값과 수치해석 베이스를 따로 넘김)
                     st.session_state.hybrid_model.train(
                         np.nan_to_num(np.array(X_seq_list, dtype=np.float32).reshape(-1, window_size, 1)),
                         np.nan_to_num(np.array(X_static_list, dtype=np.float32)),
                         np.array(y_actual_list), 
                         np.array(y_base_list)
                     )
-                    st.success("잔차 학습 완료!"); st.rerun()
+                    st.success("학습 완료!"); st.rerun()
 
-        # --- 버튼 2: 검증 (잔차 반영 버전) ---
+        # --- 버튼 2: 검증 (동적 가중치 반영) ---
         if st.button("🔍 현재 모델로 이 구간 검증 (30일)"):
             if not st.session_state.hybrid_model.is_trained:
                 st.error("모델 학습 필요")
             else:
-                with st.spinner("잔차 보정 검증 중..."):
+                with st.spinner("다이내믹 검증 중..."):
                     st.session_state.history = []
                     h, val_idx = config['step_size'], df.index.get_loc(target_date_ts)
                     for i in range(val_idx - 30, val_idx + 1):
@@ -124,30 +120,35 @@ def render_sidebar_actions(df, target_date_ts, config):
                         num_res = get_numerical_analysis(df.iloc[:i]['종가'].values, h=h)
                         vol_res = get_volatility_models(df.iloc[:i]['종가'].values)
 
-                        # 수치해석 평균 베이스라인
-                        base_p = (to_pct(num_res.get('euler', curr_p), curr_p) + 
-                                  to_pct(num_res.get('rk4', curr_p), curr_p) + 
-                                  to_pct(num_res.get('newton', curr_p), curr_p)) / 3
+                        euler_p = to_pct(num_res.get('euler', curr_p), curr_p)
+                        rk4_p = to_pct(num_res.get('rk4', curr_p), curr_p)
+                        newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
+                        base_p = (euler_p + rk4_p + newton_p) / 3
 
                         X_static_test = np.array([[
-                            base_p, to_pct(num_res.get('euler', curr_p), curr_p), to_pct(num_res.get('rk4', curr_p), curr_p),
-                            to_pct(num_res.get('newton', curr_p), curr_p), vol_res.get('egarch', 0), 
-                            vol_res.get('gjr_garch', 0), df.iloc[i - 1].get('RSI', 50), df.iloc[i - 1].get('거래량_변동률', 0)
+                            base_p, euler_p, rk4_p, newton_p, 
+                            vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0), 
+                            df.iloc[i - 1].get('RSI', 50), df.iloc[i - 1].get('거래량_변동률', 0)
                         ]], dtype=np.float32)
                         
-                        # AI의 보정값(Residual) 예측
-                        ai_residual = st.session_state.hybrid_model.predict(
+                        # [핵심 수정] 예측 결과 2개(잔차, 가중치)를 모두 받습니다!
+                        pred_res = st.session_state.hybrid_model.predict(
                             np.nan_to_num(df.iloc[i - 60 : i]['등락률'].values.reshape(1, 60, 1)), 
                             np.nan_to_num(X_static_test)
-                        )[0]
-
-                        # 최종 예측 = 수학적 평균 + AI 보정
-                        final_pred_pct = base_p + ai_residual
+                        )
                         
-                        actual_p = to_pct(df.iloc[i + h - 1]['종가'], curr_p)
-                        st.session_state.history.append({
-                            "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
-                            "pred": curr_p * (1 + final_pred_pct / 100),
-                            "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0)
-                        })
+                        if pred_res is not None:
+                            ai_residual, ai_weights = pred_res
+                            w_euler, w_rk4, w_newton = ai_weights
+                            
+                            # AI 가중치를 적용한 새로운 베이스라인 계산
+                            dynamic_base = (euler_p * w_euler) + (rk4_p * w_rk4) + (newton_p * w_newton)
+                            final_pred_pct = dynamic_base + ai_residual
+                            
+                            actual_p = to_pct(df.iloc[i + h - 1]['종가'], curr_p)
+                            st.session_state.history.append({
+                                "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
+                                "pred": curr_p * (1 + final_pred_pct / 100),
+                                "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0)
+                            })
                     st.success("검증 완료"); st.rerun()
