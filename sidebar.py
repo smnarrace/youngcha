@@ -31,10 +31,22 @@ def render_sidebar_inputs():
             selected_name, ticker = "삼성전자", "005930"
 
         step_size = st.radio("⏱️ 예측 주기 설정", [1, 5], format_func=lambda x: f"{x}일 기준 예측")
+        # [수정] charts.py와 results.py에서 에러가 나지 않도록 기본 설정값 정의
+        models = {"hybrid": True, "rk4": False, "newton": False, "euler": False, "simpson": False}
+        vol_models = {"egarch": False, "gjr_garch": False}
         
+        # 모든 설정값을 하나의 딕셔너리로 묶어서 반환
         return {
-            "target_date": target_date, "selected_name": selected_name, 
-            "ticker": ticker, "step_size": step_size
+            "target_date": target_date, 
+            "selected_name": selected_name, 
+            "ticker": ticker, 
+            "step_size": step_size,
+            "models": models,          # <--- 이 부분이 다시 들어갔습니다!
+            "vol_models": vol_models,  # <--- 이것도 필요해요!
+            "show_bb": False, 
+            "show_rsi": False, 
+            "ma_settings": [], 
+            "show_signals": False
         }
 
 # [파트 2] 데이터 로드 후 버튼들만 보여주는 함수
