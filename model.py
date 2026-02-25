@@ -17,9 +17,10 @@ class YoungChaHybridModel:
 
         # 1. LSTM 모델 구성
         self.lstm_model = Sequential([
-            LSTM(64, input_shape=(X_seq.shape[1], X_seq.shape[2])),
+            Input(shape=(X_seq.shape[1], X_seq.shape[2])), # 명시적으로 Input 레이어 사용
+            LSTM(64),
             Dense(16, activation='relu'),
-            Dense(1) # 최종 출력 1개
+            Dense(1)
         ])
         self.lstm_model.compile(optimizer='adam', loss='mse')
         
