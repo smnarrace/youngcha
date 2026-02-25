@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import datetime
+import streamlit as st  # 👈 [중요] 최상단으로 이동
 
 def draw_chart(df, config, vol_results=None, predictions=None):
     # 인덱스 데이터 타입 보정 및 전체 날짜 정규화
@@ -26,94 +27,36 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     else:
         fig = make_subplots(rows=1, cols=1)
 
-    # 2. 변동성 구름대 (go.Bar 방식)
+    # 2. 변동성 구름대 및 수치해석 모델 점 (기존 영차님 로직 동일)
+    # ... [영차님 코드 유지] ...
     active_vols = config.get('vol_models', {})
-    
     if vol_results and predictions and any(active_vols.values()):
-        # [오늘의 예측 기준가] -> 내일 위치용 (수치해석 모델 결과값)
         base_price_tomorrow = None
         for m, active in config.get('models', {}).items():
             if active and m in predictions:
                 base_price_tomorrow = predictions[m]
                 break
-        if base_price_tomorrow is None:
-            base_price_tomorrow = df['종가'].iloc[-1]
-            
-        # [어제의 예측 기준가] -> 오늘 위치용 (전일 종가 기준)
-        # 🎯 어제 시점의 예측은 어제 종가를 기준으로 해야 오늘 캔들과 정확히 일치합니다.
+        if base_price_tomorrow is None: base_price_tomorrow = df['종가'].iloc[-1]
         base_price_today_overlay = df['종가'].iloc[-2] if len(df) > 1 else df['종가'].iloc[-1]
 
-        settings = [
-            ('egarch', 'rgba(255, 0, 0, 0.15)', 'EGARCH'),
-            ('gjr_garch', 'rgba(0, 0, 255, 0.2)', 'GJR-GARCH')
-        ]
-
+        settings = [('egarch', 'rgba(255, 0, 0, 0.15)', 'EGARCH'), ('gjr_garch', 'rgba(0, 0, 255, 0.2)', 'GJR-GARCH')]
         for model_key, color, label in settings:
             if active_vols.get(model_key):
                 v_pct = vol_results.get(model_key, 0)
-                
-                # 🔥 오늘의 예측 (내일 빈 칸 - 윤곽선 없고 진하게)
-                fig.add_trace(go.Bar(
-                    x=[pos_tomorrow], 
-                    y=[(base_price_tomorrow * (v_pct/100)) * 2], 
-                    base=base_price_tomorrow * (1 - v_pct/100), 
-                    name=f'{label} (내일예측)',
-                    marker=dict(
-                        color=color.replace('0.15', '0.6').replace('0.2', '0.6'), 
-                        line=dict(width=0)
-                    ),
-                    width=0.8,
-                    offsetgroup=model_key,
-                ), row=1, col=1)
-                
-                # 🔥 어제의 예측 (오늘 캔들 오버레이 - 윤곽선 없고 연하게)
-                fig.add_trace(go.Bar(
-                    x=[pos_today], 
-                    y=[(base_price_today_overlay * (v_pct/100)) * 2],
-                    base=base_price_today_overlay * (1 - v_pct/100),
-                    name=f'{label} (어제예측)',
-                    marker=dict(color=color, line=dict(width=0)),
-                    width=0.8,
-                    offsetgroup=model_key,
-                    showlegend=False
-                ), row=1, col=1)
+                fig.add_trace(go.Bar(x=[pos_tomorrow], y=[(base_price_tomorrow * (v_pct/100)) * 2], base=base_price_tomorrow * (1 - v_pct/100), name=f'{label} (내일예측)', marker=dict(color=color.replace('0.15', '0.6').replace('0.2', '0.6'), line=dict(width=0)), width=0.8, offsetgroup=model_key), row=1, col=1)
+                fig.add_trace(go.Bar(x=[pos_today], y=[(base_price_today_overlay * (v_pct/100)) * 2], base=base_price_today_overlay * (1 - v_pct/100), name=f'{label} (어제예측)', marker=dict(color=color, line=dict(width=0)), width=0.8, offsetgroup=model_key, showlegend=False), row=1, col=1)
 
-        # 🎯 모델별 고유 컬러 및 스타일 설정
-        model_styles = {
-            'rk4': {'color': '#FFD700', 'symbol': 'diamond'},      # 골드 / 다이아몬드 (가장 정교)
-            'euler': {'color': '#00FF00', 'symbol': 'circle'},     # 라임 / 원 (기본)
-            'newton': {'color': '#FF00FF', 'symbol': 'x'},          # 마젠타 / X
-            'simpson': {'color': '#00FFFF', 'symbol': 'star'}      # 사이언 / 별
-        }
-
-        # 🎯 수치해석 모델 예측 점 표시 (내일 칸 중앙)
-        for m_key, m_val in predictions.items():
-            if config['models'].get(m_key):
-                style = model_styles.get(m_key, {'color': 'white', 'symbol': 'circle'})
-                
-                fig.add_trace(go.Scatter(
-                    x=[pos_tomorrow], 
-                    y=[m_val],
-                    mode='markers+text',
-                    name=f'{m_key.upper()} 예측가',
-                    marker=dict(
-                        size=12, 
-                        color=style['color'], 
-                        symbol=style['symbol'], 
-                        line=dict(width=1.5, color='white') # 가독성을 위한 테두리
-                    ),
-                    text=[f"{m_val:,.0f}"], 
-                    textposition="top center",
-                    textfont=dict(color=style['color'], size=11) # 텍스트 색상도 모델색과 일치
-                ), row=1, col=1)
+    # 모델별 점 스타일
+    model_styles = {'rk4': {'color': '#FFD700', 'symbol': 'diamond'}, 'euler': {'color': '#00FF00', 'symbol': 'circle'}, 'newton': {'color': '#FF00FF', 'symbol': 'x'}, 'simpson': {'color': '#00FFFF', 'symbol': 'star'}}
+    for m_key, m_val in predictions.items():
+        if config['models'].get(m_key):
+            style = model_styles.get(m_key, {'color': 'white', 'symbol': 'circle'})
+            fig.add_trace(go.Scatter(x=[pos_tomorrow], y=[m_val], mode='markers+text', name=f'{m_key.upper()} 예측가', marker=dict(size=12, color=style['color'], symbol=style['symbol'], line=dict(width=1.5, color='white')), text=[f"{m_val:,.0f}"], textposition="top center", textfont=dict(color=style['color'], size=11)), row=1, col=1)
 
     # 3. 캔들스틱
-    fig.add_trace(go.Candlestick(
-        x=x_labels, open=view_df['시가'], high=view_df['고가'], 
-        low=view_df['저가'], close=view_df['종가'], name="캔들"
-    ), row=1, col=1)
+    fig.add_trace(go.Candlestick(x=x_labels, open=view_df['시가'], high=view_df['고가'], low=view_df['저가'], close=view_df['종가'], name="캔들"), row=1, col=1)
 
-    # ... (RSI, 이평선, 볼린저 밴드 로직 동일) ...
+    # 4. 보조 지표 (RSI, MA, BB)
     if config.get('show_rsi'):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['RSI'], name="RSI", line=dict(color='#FFD700', width=1.5)), row=2, col=1)
     
@@ -133,22 +76,25 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             target_idx = x_labels.index(target_date_str)
             if target_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
-    # 🎯 AI의 과거 예측 기록을 차트에 직접 표시 (시각적 함정 체크용)
+
+    # 🎯 AI의 과거 예측 기록 (X표시와 점선)
+    # 이 부분을 캔들스틱 이후에 배치해야 가격 위에 잘 보입니다.
     if 'history' in st.session_state and len(st.session_state.history) > 0:
-        import streamlit as st # 함수 내에서 세션 접근을 위해 추가
         hist_df = pd.DataFrame(st.session_state.history)
+        hist_df['date_str'] = pd.to_datetime(hist_df['date']).dt.strftime('%Y-%m-%d')
         
-        # 날짜를 문자열로 변환하여 X축 라벨과 동기화
-        hist_df['date_str'] = hist_df['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        # 차트 범위 내에 있는 날짜만 필터링 (가독성 위해)
+        plot_hist = hist_df[hist_df['date_str'].isin(extended_x_labels)]
         
         fig.add_trace(go.Scatter(
-            x=hist_df['date_str'], 
-            y=hist_df['pred'],
+            x=plot_hist['date_str'], 
+            y=plot_hist['pred'],
             mode='markers+lines',
-            name="AI 과거예측기록",
-            marker=dict(size=8, color='#FF4B4B', symbol='x'), # 빨간색 X 표시
+            name="AI 예측 발자국",
+            marker=dict(size=8, color='#FF4B4B', symbol='x'),
             line=dict(color='#FF4B4B', dash='dot', width=1)
         ), row=1, col=1)
+
     # 8. 레이아웃 최종 업데이트
     fig.update_layout(
         template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
