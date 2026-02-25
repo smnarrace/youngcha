@@ -85,7 +85,13 @@ if not df.empty:
                         df.iloc[idx - 1].get('거래량_변동률', 0)
                     ]
                     X_static_list.append(static_feats)
-                    y_list.append(df.iloc[idx]['등락률'])
+                    # main.py의 학습 루프 내부
+                    h = config['step_size']
+                    # idx 시점에서 h일 뒤의 가격이 현재(idx-1) 대비 몇 % 변했는지 계산
+                    if idx + h - 1 < len(df):
+                        future_p = df.iloc[idx + h - 1]['종가']
+                        target_return = ((future_p - curr_p) / curr_p) * 100
+                        y_list.append(target_return)
                     progress_bar.progress((i + 1) / len(valid_indices))
                 
                 st.session_state.hybrid_model.train(
