@@ -133,7 +133,22 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             target_idx = x_labels.index(target_date_str)
             if target_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
-
+    # 🎯 AI의 과거 예측 기록을 차트에 직접 표시 (시각적 함정 체크용)
+    if 'history' in st.session_state and len(st.session_state.history) > 0:
+        import streamlit as st # 함수 내에서 세션 접근을 위해 추가
+        hist_df = pd.DataFrame(st.session_state.history)
+        
+        # 날짜를 문자열로 변환하여 X축 라벨과 동기화
+        hist_df['date_str'] = hist_df['date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        
+        fig.add_trace(go.Scatter(
+            x=hist_df['date_str'], 
+            y=hist_df['pred'],
+            mode='markers+lines',
+            name="AI 과거예측기록",
+            marker=dict(size=8, color='#FF4B4B', symbol='x'), # 빨간색 X 표시
+            line=dict(color='#FF4B4B', dash='dot', width=1)
+        ), row=1, col=1)
     # 8. 레이아웃 최종 업데이트
     fig.update_layout(
         template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
