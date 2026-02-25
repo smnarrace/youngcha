@@ -27,18 +27,31 @@ def get_numerical_analysis(prices, h=1):
     return {"euler": euler, "rk4": rk4, "newton": newton, "simpson": simpson_adj}
 
 def calculate_indicators(df):
+    # 1. 이동평균선 및 볼린저 밴드 (기존 유지)
     df['MA20'] = df['종가'].rolling(window=20).mean()
     std = df['종가'].rolling(window=20).std()
     df['BB_U'] = df['MA20'] + (std * 2)
     df['BB_L'] = df['MA20'] - (std * 2)
     
+    # 2. RSI (Relative Strength Index) 계산
     delta = df['종가'].diff()
     up = delta.clip(lower=0).rolling(window=14).mean()
     down = delta.clip(upper=0).abs().rolling(window=14).mean()
     rs = up / (down + 1e-9) 
     df['RSI'] = 100 - (100 / (1 + rs))
-    return df
+    df['RSI'] = df['RSI'].fillna(50) # 초기값 중립(50) 처리
 
+    # 3. [추가] 거래량 변동률 (%) - AI의 '에너지' 피처
+    # 전일 대비 거래량이 얼마나 터졌는지 계산합니다.
+    df['거래량_변동률'] = df['거래량'].pct_change() * 100
+    df['거래량_변동률'] = df['거래량_변동률'].replace([float('inf'), float('-inf')], 0).fillna(0)
+
+    # 4. [추가] 등락률 (%) - AI의 '핵심 타겟' 및 '시퀀스' 피처
+    df['등락률'] = df['종가'].pct_change() * 100
+    df['등락률'] = df['등락률'].fillna(0)
+    
+    return df
+    
 # utils.py 의 get_tickers 함수를 아래 내용으로 교체
 @st.cache_data
 def get_tickers():
