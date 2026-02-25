@@ -12,7 +12,8 @@ class YoungChaHybridModel:
             n_estimators=150, 
             learning_rate=0.03, 
             max_depth=4, 
-            subsample=0.8
+            subsample=0.8,
+            colsample_bytree=0.8
         )
         self.is_trained = False
 
