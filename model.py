@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Input, LSTM, Dense
 class YoungChaHybridModel:
     def __init__(self):
         self.lstm_model = None
-        self.xgb_model = XGBRegressor(n_estimators=100, learning_rate=0.05, max_depth=5)
+        self.xgb_model = XGBRegressor(n_estimators=100, learning_rate=0.05, max_depth=3)
         self.is_trained = False
 
     def train(self, X_seq, X_static, y):
