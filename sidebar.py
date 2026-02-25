@@ -25,7 +25,7 @@ def render_sidebar():
             ticker = ticker_dict[selected_name]
         else:
             st.error("❌ 일치하는 종목이 없습니다.")
-            st.stop()
+            selected_name, ticker = "삼성전자", "005930"
 
         # 3. 예측 주기 설정 (이 값이 모델 학습의 기준이 됨)
         step_size = st.radio("⏱️ 예측 주기 설정", [1, 5], 
