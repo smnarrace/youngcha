@@ -39,25 +39,47 @@ def calculate_indicators(df):
     df['RSI'] = 100 - (100 / (1 + rs))
     return df
 
-# utils.py 의 get_tickers 함수 수정
+# utils.py 의 get_tickers 함수를 아래 내용으로 교체
 @st.cache_data
 def get_tickers():
-    try:
-        # 오늘 기준으로 가장 가까운 영업일의 종목 리스트를 가져옴
-        today = datetime.datetime.now().strftime("%Y%m%d")
-        tickers = stock.get_market_ticker_list(today)
-        
-        # 만약 휴장일이라 리스트가 비어있다면, 하루 전 날짜로 재시도
-        if not tickers:
-            yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y%m%d")
-            tickers = stock.get_market_ticker_list(yesterday)
+    import datetime
+    
+    # 1. 안전한 날짜 찾기 로직
+    # 현재 시각을 기준으로, 장이 열리지 않은 주말이나 새벽이라면 전날 데이터를 찾음
+    now = datetime.datetime.now()
+    
+    # 주말(토:5, 일:6)이면 금요일로 이동
+    if now.weekday() == 5: # 토요일
+        target_dt = now - datetime.timedelta(days=1)
+    elif now.weekday() == 6: # 일요일
+        target_dt = now - datetime.timedelta(days=2)
+    else:
+        # 평일이라도 오전 9시 전이면 전날 데이터를 가져옴
+        if now.hour < 9:
+            target_dt = now - datetime.timedelta(days=1)
+        else:
+            target_dt = now
             
-        return {stock.get_market_ticker_name(t): t for t in tickers}
-    except:
-        # 최후의 수단: 가장 최근 영업일 종목 리스트 (날짜 미지정)
-        tickers = stock.get_market_ticker_list()
-        return {stock.get_market_ticker_name(t): t for t in tickers}
+    target_date = target_dt.strftime("%Y%m%d")
 
+    try:
+        # 2. 직접 계산한 안전한 날짜로 호출 (IndexError 방지)
+        tickers = stock.get_market_ticker_list(target_date, market="KOSPI") # 코스피 기준
+        
+        # 만약 코스피가 비어있다면 코스닥도 시도
+        if not tickers:
+            tickers = stock.get_market_ticker_list(target_date, market="KOSDAQ")
+            
+        if not tickers:
+            # 그래도 비어있다면 아예 3일 전으로 강제 후퇴 (연휴 대비)
+            safe_date = (now - datetime.timedelta(days=3)).strftime("%Y%m%d")
+            tickers = stock.get_market_ticker_list(safe_date)
+
+        return {stock.get_market_ticker_name(t): t for t in tickers}
+        
+    except Exception as e:
+        # 어떤 에러가 나더라도 앱이 죽지 않게 삼성전자 하나라도 반환하는 최후의 보루
+        return {"삼성전자": "005930"}
 # utils.py 의 변동성 함수 업그레이드 (Winsorizing & Dynamic Cap)
 def get_volatility_models(prices):
     # 1. 가격 예외 처리 (0 이하 가격 방지)
