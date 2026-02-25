@@ -6,7 +6,7 @@ from utils import get_tickers
 def render_sidebar():
     with st.sidebar:
         st.title("🔬 전략 조합실")
-        app_mode = st.radio("🏠 분석 모드 선택", ["현재 예측", "백테스팅"], horizontal=True)
+        app_mode = st.radio("🏠 분석 모드 선택", ["백테스팅"], horizontal=True)
         
         # 날짜 정규화 (시분초 제거)
         today = datetime.date.today()
