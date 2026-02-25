@@ -10,29 +10,35 @@ class YoungChaHybridModel:
         self.is_trained = False
 
     def train(self, X_seq, X_static, y):
-        # 1. LSTM으로 시계열 패턴 학습
+        # [★핵심 방어선] 텐서플로우가 에러를 뿜지 못하도록 완벽한 실수형 배열로 강제 변환
+        X_seq = np.asarray(X_seq, dtype=np.float32)
+        X_static = np.asarray(X_static, dtype=np.float32)
+        y = np.asarray(y, dtype=np.float32)
+
+        # 1. LSTM 모델 구성
         self.lstm_model = Sequential([
             LSTM(64, input_shape=(X_seq.shape[1], X_seq.shape[2])),
-            Dense(16, activation='relu'), # 16개의 숨겨진 패턴을 찾고
-            Dense(1)                      # [핵심 수정] 최종 출력을 정답(y)과 똑같이 1개로 맞춤!
+            Dense(16, activation='relu'),
+            Dense(1) # 최종 출력 1개
         ])
         self.lstm_model.compile(optimizer='adam', loss='mse')
         
-        # 이제 에러 없이 부드럽게 학습됩니다.
+        # 이제 에러 없이 부드럽게 학습됩니다!
         self.lstm_model.fit(X_seq, y, epochs=20, verbose=0)
         
-        # 2. LSTM에서 특징 추출 (여기서는 LSTM이 1차로 예측한 값을 피처로 사용)
+        # 2. LSTM 특징 추출 및 XGBoost 학습
         lstm_feats = self.lstm_model.predict(X_seq, verbose=0)
-        
-        # 3. XGBoost 학습 (수치해석/GARCH 데이터 + LSTM 예측값 결합)
         combined_X = np.hstack([X_static, lstm_feats])
         self.xgb_model.fit(combined_X, y)
-        
         self.is_trained = True
 
     def predict(self, X_seq, X_static):
         if not self.is_trained:
             return None 
+            
+        # 예측할 때도 동일하게 형변환 안전장치 적용
+        X_seq = np.asarray(X_seq, dtype=np.float32)
+        X_static = np.asarray(X_static, dtype=np.float32)
             
         lstm_feats = self.lstm_model.predict(X_seq, verbose=0)
         combined_X = np.hstack([X_static, lstm_feats])
