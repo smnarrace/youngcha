@@ -7,6 +7,7 @@ class YoungChaHybridModel:
     def __init__(self):
         self.lstm_model = None
         self.xgb_model = XGBRegressor(n_estimators=100, learning_rate=0.05)
+        self.is_trained = False  # [추가] 학습 완료 여부를 저장하는 안전장치
 
     def train(self, X_seq, X_static, y):
         # 1. LSTM으로 시계열 패턴 학습 (종가 흐름 등)
@@ -18,13 +19,19 @@ class YoungChaHybridModel:
         self.lstm_model.fit(X_seq, y, epochs=20, verbose=0)
         
         # 2. LSTM에서 특징 추출
-        lstm_feats = self.lstm_model.predict(X_seq)
+        lstm_feats = self.lstm_model.predict(X_seq, verbose=0) # verbose=0으로 콘솔창 깔끔하게
         
         # 3. XGBoost 학습 (LSTM 특징 + GARCH 변동성 + 수치해석 결과)
         combined_X = np.hstack([X_static, lstm_feats])
         self.xgb_model.fit(combined_X, y)
+        
+        self.is_trained = True  # [추가] 학습이 끝났음을 표시
 
     def predict(self, X_seq, X_static):
-        lstm_feats = self.lstm_model.predict(X_seq)
+        # [추가] 학습되지 않은 상태에서 예측을 시도하면 에러 대신 None 반환
+        if not self.is_trained:
+            return None 
+            
+        lstm_feats = self.lstm_model.predict(X_seq, verbose=0)
         combined_X = np.hstack([X_static, lstm_feats])
         return self.xgb_model.predict(combined_X)
