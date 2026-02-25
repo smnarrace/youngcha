@@ -96,10 +96,10 @@ if not df.empty:
                     # 프로그레스 바 업데이트
                     progress_bar.progress((i + 1) / len(valid_indices))
                 
-                # 리스트를 Numpy 배열로 변환
-                X_seq_train = np.array(X_seq_list).reshape(-1, window_size, 1)
-                X_static_train = np.array(X_static_list)
-                y_train = np.array(y_list)
+                # 리스트를 Numpy 배열로 변환 (딥러닝이 좋아하는 실수형 float32로 강제 변환)
+                X_seq_train = np.array(X_seq_list, dtype=np.float32).reshape(-1, window_size, 1)
+                X_static_train = np.array(X_static_list, dtype=np.float32)
+                y_train = np.array(y_list, dtype=np.float32)
                 
                 # 모델 훈련 실행
                 st.session_state.hybrid_model.train(X_seq_train, X_static_train, y_train)
