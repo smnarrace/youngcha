@@ -106,8 +106,55 @@ if not df.empty:
                 y_train = np.nan_to_num(y_train)
                 # 모델 훈련 실행
                 st.session_state.hybrid_model.train(X_seq_train, X_static_train, y_train)
-                st.sidebar.success("🎉 학습 완료!")
-                st.rerun() # 학습 완료 후 화면을 새로고침하여 '학습 완료 상태' 텍스트 반영
+               # --- [★자동 검증 로직 시작] ---
+                st.sidebar.info("📉 최근 15일간의 실전 적중률을 산출 중입니다...")
+                
+                st.session_state.history = [] # 이전 기록 리셋
+                check_days = 15 # 검증 기간 (수정 가능)
+                
+                # 학습 종료 시점(max_train_idx)부터 과거 15일치를 역추적
+                for i in range(max_train_idx - check_days, max_train_idx):
+                    if i < window_size: continue
+                    
+                    # A. 데이터 준비
+                    curr_date = df.index[i]
+                    actual_p = df.iloc[i]['종가']
+                    prev_p = df.iloc[i - 1]['종가']
+                    
+                    # B. AI 입력값 만들기 (해당 날짜 직전 데이터만 사용)
+                    test_seq = df.iloc[i - window_size : i]['종가'].values
+                    X_seq_test = np.array(test_seq, dtype=np.float32).reshape(1, window_size, 1)
+                    
+                    past_prices_test = df.iloc[:i]['종가'].values
+                    test_num = get_numerical_analysis(past_prices_test)
+                    test_vol = get_volatility_models(past_prices_test)
+                    
+                    X_static_test = np.array([[
+                        test_num.get('euler', 0), test_num.get('rk4', 0),
+                        test_num.get('newton', 0), test_vol.get('egarch', 0),
+                        test_vol.get('gjr_garch', 0)
+                    ]], dtype=np.float32)
+                    
+                    # C. 예측 및 결과 저장
+                    X_seq_test = np.nan_to_num(X_seq_test)
+                    X_static_test = np.nan_to_num(X_static_test)
+                    
+                    pred_p = st.session_state.hybrid_model.predict(X_seq_test, X_static_test)[0]
+                    
+                    is_hit = (pred_p > prev_p and actual_p > prev_p) or \
+                             (pred_p < prev_p and actual_p < prev_p)
+                    
+                    st.session_state.history.append({
+                        "date": curr_date.date(),
+                        "actual": actual_p,
+                        "pred": pred_p,
+                        "hit": is_hit
+                    })
+                # --- [★자동 검증 로직 끝] ---
+
+                # 95번째 줄: 원래 있던 성공 메시지
+                st.sidebar.success(f"🎉 학습 및 {check_days}일 검증 완료!")
+                st.rerun()
 
     # --- 핵심: 데이터 계산부 분리 ---
     # 차트와 결과창에서 공통으로 쓸 데이터를 여기서 미리 계산합니다.
