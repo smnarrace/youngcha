@@ -161,7 +161,3 @@ if not df.empty:
         render_results(df, config, vol_results=vol_results, predictions=predictions)
 else:
     st.error("데이터 로드 실패")
-        with col1:
-            st.plotly_chart(draw_chart(df, config, vol_results, predictions), use_container_width=True)
-        with col2:
-            render_results(df, config, vol_results=vol_results, predictions=predictions)
