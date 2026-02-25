@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from pykrx import stock
 import datetime
 import random # [추가] 데이터 셔플용
 
