@@ -44,40 +44,50 @@ def get_tickers():
     tickers = stock.get_market_ticker_list()
     return {stock.get_market_ticker_name(t): t for t in tickers}
 
-
-# utils.py 의 변동성 함수 교체
+# utils.py 의 변동성 함수 업그레이드 (Winsorizing & Dynamic Cap)
 def get_volatility_models(prices):
-    # 1. 0이나 음수 가격 방지 (오류 원천 차단)
+    # 1. 가격 예외 처리 (0 이하 가격 방지)
     prices = np.where(prices <= 0, 1e-9, prices)
     
-    # 2. 로그 수익률 계산 (안전한 방식)
+    # 2. 로그 수익률 계산 (단위: %)
     returns = np.diff(np.log(prices)) * 100
     
-    # 3. 무한대(inf)나 결측치(NaN)를 0으로 강제 치환 [★핵심]
-    returns = np.nan_to_num(returns, nan=0.0, posinf=0.0, neginf=0.0)
+    # [업그레이드 1] 극단치 및 무한대 처리 (윈저라이징)
+    # 한국 증시 상하한가를 감안하여 inf는 ±30%로 치환, NaN은 0으로 처리
+    returns = np.nan_to_num(returns, nan=0.0, posinf=30.0, neginf=-30.0)
+    # 비정상적인 액면분할/오류 데이터 스파이크를 ±35%로 제한 (AI 충격 보존)
+    returns = np.clip(returns, -35.0, 35.0) 
     
     train_data = returns[-500:] if len(returns) > 500 else returns 
     
+    # [업그레이드 2] 해당 종목의 평소 변동성(Baseline) 계산
+    baseline_vol = np.std(train_data)
+    if baseline_vol == 0: baseline_vol = 1e-9
+    
+    # 동적 상한선: 평소 변동성의 10배까지만 허용 (종목마다 다른 기준 적용)
+    max_vol_limit = baseline_vol * 10.0 
+    
     try:
+        # [업그레이드 3] rescale=True 적용으로 내부 알고리즘 최적화 및 발산 방지
         # EGARCH 모델
-        egarch_m = arch_model(train_data, vol='EGARCH', p=1, o=1, q=1, dist='t', rescale=False)
+        egarch_m = arch_model(train_data, vol='EGARCH', p=1, o=1, q=1, dist='t', rescale=True)
         egarch_res = egarch_m.fit(disp='off', show_warning=False)
         egarch_var = egarch_res.forecast(horizon=1).variance.iloc[-1].values[0]
-        egarch_vol = np.sqrt(egarch_var) if egarch_var > 0 else 0
+        egarch_vol = np.sqrt(egarch_var) if egarch_var > 0 else baseline_vol
         
         # GJR-GARCH 모델
-        gjr_m = arch_model(train_data, p=1, o=1, q=1, dist='t', rescale=False)
+        gjr_m = arch_model(train_data, p=1, o=1, q=1, dist='t', rescale=True)
         gjr_res = gjr_m.fit(disp='off', show_warning=False)
         gjr_var = gjr_res.forecast(horizon=1).variance.iloc[-1].values[0]
-        gjr_vol = np.sqrt(gjr_var) if gjr_var > 0 else 0
+        gjr_vol = np.sqrt(gjr_var) if gjr_var > 0 else baseline_vol
         
     except Exception as e:
-        # 모델 적합에 실패하여 에러가 날 경우, 단순 표준편차로 대책 마련
-        egarch_vol = np.std(train_data)
-        gjr_vol = np.std(train_data)
+        # GARCH 계산 실패 시 평소 변동성으로 대체
+        egarch_vol = baseline_vol
+        gjr_vol = baseline_vol
         
-    # 4. 변동성이 비정상적으로 폭발(예: 300%)하는 것을 막기 위해 최대치(예: 30%)로 제한
+    # [업그레이드 4] 무식한 30% 커팅 대신, 종목별 맞춤 한계치(max_vol_limit) 적용
     return {
-        "egarch": float(np.clip(egarch_vol, 0, 30.0)),
-        "gjr_garch": float(np.clip(gjr_vol, 0, 30.0))
+        "egarch": float(np.clip(egarch_vol, 0, max_vol_limit)),
+        "gjr_garch": float(np.clip(gjr_vol, 0, max_vol_limit))
     }
