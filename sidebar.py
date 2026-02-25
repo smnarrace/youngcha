@@ -35,13 +35,7 @@ def render_sidebar():
                              format_func=lambda x: f"{x}일 기준 예측")
         
         st.write("---")
-        
-        # 4. AI 하이브리드 엔진 상태 표시
-        st.subheader("🤖 AI 하이브리드 엔진")
-        if 'hybrid_model' in st.session_state and st.session_state.hybrid_model.is_trained:
-            st.success("✅ 엔진 가동 준비 완료")
-        else:
-            st.info("💡 '모델 집중 학습'을 진행해 주세요.")
+
 
         # 내부적으로 필요한 모델 활성화 상태는 딕셔너리로 유지하여 코드 호환성 보장
         models = {"hybrid": True, "rk4": False, "newton": False, "euler": False, "simpson": False}
