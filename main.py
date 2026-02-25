@@ -107,11 +107,12 @@ if not df.empty:
             with st.spinner("검증 데이터 생성 중..."):
                 st.session_state.history = []
                 h = config['step_size']
+                check_days = 30
                 target_date_ts = pd.Timestamp(config['target_date']).normalize()
                 val_idx = df.index.get_loc(target_date_ts) if target_date_ts in df.index else len(df) - 1
                 
                 # [수정] 검증 시에도 학습과 동일한 h와 피처를 사용
-                for i in range(val_idx - 15, val_idx + 1):
+                for i in range(val_idx - check_days, val_idx + 1):
                     if i < 60 or i + h > len(df): continue
                     
                     curr_p = df.iloc[i - 1]['종가']
