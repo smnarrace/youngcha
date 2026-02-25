@@ -100,7 +100,10 @@ if not df.empty:
                 X_seq_train = np.array(X_seq_list, dtype=np.float32).reshape(-1, window_size, 1)
                 X_static_train = np.array(X_static_list, dtype=np.float32)
                 y_train = np.array(y_list, dtype=np.float32)
-                
+                # [NEW] 혹시 수치해석이나 GARCH 계산 중 발생한 NaN(결측치)이 있다면 0으로 안전하게 치환
+                X_seq_train = np.nan_to_num(X_seq_train)
+                X_static_train = np.nan_to_num(X_static_train)
+                y_train = np.nan_to_num(y_train)
                 # 모델 훈련 실행
                 st.session_state.hybrid_model.train(X_seq_train, X_static_train, y_train)
                 st.sidebar.success("🎉 학습 완료!")
