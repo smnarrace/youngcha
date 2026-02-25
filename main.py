@@ -11,7 +11,16 @@ from charts import draw_chart
 from results import render_results
 from model import YoungChaHybridModel
 
-st.set_page_config(page_title="AlphaQuant Pro - 영차 AI 연구소", layout="wide")
+st.set_page_config(
+    page_title="수학으로 주가예측 시뮬레이", # 구글 검색 시 제목으로 뜸
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/smnarrace/youngcha',
+        'About': "# 영차 AI 연구소\n수치 해석과 딥러닝을 결합한 주가 예측 웹서비스입니다." # 검색 로봇이 읽어갈 설명
+    }
+)
 
 if 'hybrid_model' not in st.session_state:
     st.session_state.hybrid_model = YoungChaHybridModel()
