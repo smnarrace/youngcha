@@ -47,7 +47,10 @@ df = stock.get_market_ohlcv(start_date_str, end_date_str, config['ticker'])
 
 if not df.empty:
     df = calculate_indicators(df)
-    
+
+    # [변경] 등락률 데이터 생성 (매우 중요!)
+    df['등락률'] = df['종가'].pct_change() * 100
+    df = df.dropna() # 첫 날 NaN 제거
     # --- [NEW] 하이브리드 모델 집중 학습 로직 ---
     # 데이터가 정상 로드된 상태에서만 사이드바에 학습 버튼을 노출합니다.
     if st.sidebar.button("🚀 모델 집중 학습 시작 (최근 50일)"):
