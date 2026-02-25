@@ -23,8 +23,11 @@ def render_sidebar():
         if matched_names:
             selected_name = st.selectbox("🎯 검색 결과 중 선택", matched_names)
             ticker = ticker_dict[selected_name]
-        else:
+        elif search_word and search_word != "삼성전자":
             st.error("❌ 일치하는 종목이 없습니다.")
+            selected_name, ticker = "삼성전자", "005930"
+        else:
+            # 초기 상태 또는 검색 결과가 없을 때 기본값 유지 (에러 메시지 숨김)
             selected_name, ticker = "삼성전자", "005930"
 
         # 3. 예측 주기 설정 (이 값이 모델 학습의 기준이 됨)
