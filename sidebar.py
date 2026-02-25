@@ -35,7 +35,7 @@ def render_sidebar():
         st.subheader(" 🧪 예측 모델")
         c1, c2 = st.columns(2)
         models = {
-            "rk4": c1.checkbox("RK4", value=True),
+            "rk4": c1.checkbox("RK4", value=False),
             "newton": c1.checkbox("뉴턴", value=False),
             "euler": c2.checkbox("오일러", value=False),
             "simpson": c2.checkbox("심슨", value=False)
