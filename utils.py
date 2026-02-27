@@ -8,8 +8,10 @@ import pyupbit
 def get_numerical_analysis(prices, h=1):
     if len(prices) < 10: return {"euler": prices[-1], "rk4": prices[-1], "newton": prices[-1], "simpson": 0}
     y = prices
-    slope_simple = (y[-1] - y[-h-1]) / h if len(y) > h else (y[-1] - y[-2])
-    euler = y[-1] + h * slope_simple
+    
+    v = (y[-1] - y[-2]) 
+    a = (y[-1] - y[-2]) - (y[-2] - y[-3])
+    taylor_2nd = y[-1] + (h * v) + (0.5 * (h**2) * a)
     
     k1 = y[-1] - y[-2]          # 최근 1일 변화량
     k2 = (y[-1] - y[-3]) / 2    # 최근 2일 평균 변화량
@@ -25,7 +27,7 @@ def get_numerical_analysis(prices, h=1):
     simpson_energy = (h/3) * (y[-3] + 4*y[-2] + y[-1])
     simpson_adj = (simpson_energy / (y[-1] * 3))
     
-    return {"euler": euler, "rk4": rk4, "newton": newton, "simpson": simpson_adj}
+    return {"euler": taylor_2nd, "rk4": rk4, "newton": newton, "simpson": simpson_adj}
 
 def calculate_indicators(df):
     # 1. 이동평균선 및 볼린저 밴드 (기존 유지)
