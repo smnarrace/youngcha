@@ -13,10 +13,19 @@ def render_sidebar_inputs():
         app_mode = st.radio("테스트 모드", ["백테스팅"], horizontal=True)
         today = datetime.date.today()
         target_date = st.date_input("📅 분석 기준일 선택", today)
-
+        
         st.write("---")
         market_type = st.radio("🌐 시장 선택", ["주식 (한국)", "가상화폐 (KRW)"], horizontal=True)
+        buy_threshold = st.slider(
+            "🎯 매수 문턱값 (%)", 1.0, 3.0, 1.0, step=0.1,
+            help="AI의 상승 예측치가 이 값보다 높을 때만 매수합니다."
+        )
         
+        # 2. 변동성 제한 설정 (EGARCH 기준)
+        vol_limit = st.slider(
+            "⚠️ 변동성 제한 (GARCH)", 3.0, 15.0, 10.0, step=0.5,
+            help="시장 변동성(EGARCH)이 이 수치보다 높으면 '위험'으로 간주하고 매수하지 않습니다."
+        )
         if market_type == "주식 (한국)":
             search_word = st.text_input("🔍 종목명 입력", "삼성전자").strip().lower()
             ticker_dict = get_tickers()
@@ -48,6 +57,7 @@ def render_sidebar_inputs():
             "target_date": target_date, "selected_name": selected_name, 
             "ticker": ticker, "step_size": step_size,
             "models": models, "vol_models": vol_models,
+            "buy_threshold": buy_threshold, "vol_limit": vol_limit,
             "show_bb": False, "show_rsi": False, "ma_settings": [], "show_signals": False
         }
 
@@ -156,10 +166,15 @@ def render_sidebar_actions(df, target_date_ts, config):
                             final_pred_pct = dynamic_base + ai_residual
                             
                             actual_p = to_pct(df.iloc[i + h - 1]['종가'], curr_p)
-                            if final_pred_pct >0:
-                                strategy_return = actual_p
+                            current_vol = vol_res.get('egarch', 0)
+    
+                            is_confident = final_pred_pct > config['buy_threshold']
+                            is_stable_market = current_vol < config['vol_limit']
+                        
+                            if is_confident and is_stable_market:
+                                strategy_return = actual_p  # 두 조건 만족 시 매수
                             else:
-                                strategy_return = 0.0
+                                strategy_return = 0.0       # 조건 미달 시 관망 (자산 보호)
                             st.session_state.history.append({
                                 "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
                                 "pred": curr_p * (1 + final_pred_pct / 100),
