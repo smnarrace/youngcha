@@ -55,18 +55,18 @@ def calculate_indicators(df):
     
 # utils.py 의 get_tickers 함수를 아래 내용으로 교체
 @st.cache_data
+def get_coin_tickers():
+        try:
+            tickers = pyupbit.get_tickers(fiat="KRW")
+            return {t.split('-')[1]: t for t in tickers}
+        except Exception as e:
+            return {"BTC": "KRW-BTC"}
 def get_tickers():
     import datetime
     
     # 1. 안전한 날짜 찾기 로직
     # 현재 시각을 기준으로, 장이 열리지 않은 주말이나 새벽이라면 전날 데이터를 찾음
     now = datetime.datetime.now()
-    def get_coin_tickers():
-        try:
-            tickers = pyupbit.get_tickers(fiat="KRW")
-            return {t.split('-')[1]: t for t in tickers}
-        except Exception as e:
-            return {"BTC": "KRW-BTC"}
     # 주말(토:5, 일:6)이면 금요일로 이동
     if now.weekday() == 5: # 토요일
         target_dt = now - datetime.timedelta(days=1)
