@@ -109,12 +109,6 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                 marker=dict(size=8, color='#FF4B4B', symbol='x')
             ), row=1, col=1)
 
-    fig.update_layout(
-        template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
-        xaxis=dict(type='category', categoryorder='array', categoryarray=extended_x_labels, tickangle=-45)
-    )
-    return fig
-
     # 3. 예측 흐름 점선 (전체 흐름 파악용)
     fig.add_trace(go.Scatter(
         x=plot_hist['date_str'], y=plot_hist['pred'],
