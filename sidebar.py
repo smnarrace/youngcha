@@ -156,10 +156,14 @@ def render_sidebar_actions(df, target_date_ts, config):
                             final_pred_pct = dynamic_base + ai_residual
                             
                             actual_p = to_pct(df.iloc[i + h - 1]['종가'], curr_p)
+                            if final_pred_pct >0:
+                                strategy_return = actual_p
+                            else:
+                                strategy_return = 0.0
                             st.session_state.history.append({
                                 "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
                                 "pred": curr_p * (1 + final_pred_pct / 100),
                                 "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0),
-                                "return": actual_p
+                                "return": strategy_return
                             })
                     st.success("검증 완료"); st.rerun()
