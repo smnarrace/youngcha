@@ -200,7 +200,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                                 strategy_return = 0.0       # 관망 (MDD 방어)
 
                             st.session_state.history.append({
-                                "date": df.index[i].date(), "actual": future_price, 
+                                "date": df.index[i+h].date(), "actual": future_price, 
                                 "pred": curr_p * (1 + final_pred_pct / 100),
                                 "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0),
                                 "return": strategy_return,
