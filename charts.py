@@ -109,13 +109,13 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                 marker=dict(size=8, color='#FF4B4B', symbol='x')
             ), row=1, col=1)
 
-    # 3. 예측 흐름 점선 (전체 흐름 파악용)
-    fig.add_trace(go.Scatter(
-        x=plot_hist['date_str'], y=plot_hist['pred'],
-        mode='lines', name="예측 추세",
-        line=dict(color='rgba(255, 75, 75, 0.2)', dash='dot', width=1),
-        showlegend=False
-    ), row=1, col=1)
+        # 3. 예측 흐름 점선 (전체 흐름 파악용)
+        fig.add_trace(go.Scatter(
+            x=plot_hist['date_str'], y=plot_hist['pred'],
+            mode='lines', name="예측 추세",
+            line=dict(color='rgba(255, 75, 75, 0.2)', dash='dot', width=1),
+            showlegend=False
+        ), row=1, col=1)
     # 8. 레이아웃 최종 업데이트
     fig.update_layout(
         template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
