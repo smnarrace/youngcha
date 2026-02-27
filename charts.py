@@ -87,25 +87,25 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         plot_hist = hist_df[hist_df['date_str'].isin(extended_x_labels)]
         
         # 1. 관망 구간 (매수 조건 미달) - 흐린 회색 X
-    watch_df = plot_hist[~plot_hist['is_buy']]
-    if not watch_df.empty:
-        fig.add_trace(go.Scatter(
-            x=watch_df['date_str'], y=watch_df['pred'],
-            mode='markers', name="관망 (필터링)",
-            marker=dict(size=7, color='rgba(150, 150, 150, 0.5)', symbol='x')
-        ), row=1, col=1)
-
-    # 2. 매수 진입 구간 (조건 만족) - 밝은 초록색 별
-    buy_df = plot_hist[plot_hist['is_buy']]
-    if not buy_df.empty:
-        fig.add_trace(go.Scatter(
-            x=buy_df['date_str'], y=buy_df['pred'],
-            mode='markers+text', name="AI 매수 진입",
-            marker=dict(size=14, color='#00C805', symbol='star', 
-                        line=dict(width=1, color='white')),
-            text=["BUY"] * len(buy_df), textposition="top center",
-            textfont=dict(color="#00C805", size=10)
-        ), row=1, col=1)
+        watch_df = plot_hist[~plot_hist['is_buy']]
+        if not watch_df.empty:
+            fig.add_trace(go.Scatter(
+                x=watch_df['date_str'], y=watch_df['pred'],
+                mode='markers', name="관망 (필터링)",
+                marker=dict(size=7, color='rgba(150, 150, 150, 0.5)', symbol='x')
+            ), row=1, col=1)
+    
+        # 2. 매수 진입 구간 (조건 만족) - 밝은 초록색 별
+        buy_df = plot_hist[plot_hist['is_buy']]
+        if not buy_df.empty:
+            fig.add_trace(go.Scatter(
+                x=buy_df['date_str'], y=buy_df['pred'],
+                mode='markers+text', name="AI 매수 진입",
+                marker=dict(size=14, color='#00C805', symbol='star', 
+                            line=dict(width=1, color='white')),
+                text=["BUY"] * len(buy_df), textposition="top center",
+                textfont=dict(color="#00C805", size=10)
+            ), row=1, col=1)
 
     # 3. 예측 흐름 점선 (전체 흐름 파악용)
     fig.add_trace(go.Scatter(
