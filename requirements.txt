@@ -8,3 +8,4 @@ xgboost
 tensorflow-cpu
 setuptools
 scikit-learn
+pyupbit
