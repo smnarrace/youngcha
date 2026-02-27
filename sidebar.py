@@ -160,9 +160,9 @@ def render_sidebar_actions(df, target_date_ts, config):
                     h, val_idx = config['step_size'], df.index.get_loc(target_date_ts)
                     for i in range(val_idx - 30, val_idx + 1):
                         if i < 60 or i + h >= len(df): continue
-                        curr_p = df.iloc[i - 1]['종가']
-                        num_res = get_numerical_analysis(df.iloc[:i]['종가'].values, h=h)
-                        vol_res = get_volatility_models(df.iloc[:i]['종가'].values)
+                        curr_p = df.iloc[i]['종가']
+                        num_res = get_numerical_analysis(df.iloc[:i+1]['종가'].values, h=h)
+                        vol_res = get_volatility_models(df.iloc[:i+1]['종가'].values)
 
                         euler_p = to_pct(num_res.get('euler', curr_p), curr_p)
                         rk4_p = to_pct(num_res.get('rk4', curr_p), curr_p)
@@ -186,8 +186,9 @@ def render_sidebar_actions(df, target_date_ts, config):
                             
                             dynamic_base = (euler_p * w_euler) + (rk4_p * w_rk4) + (newton_p * w_newton)
                             final_pred_pct = dynamic_base + ai_residual
-                            
-                            actual_p = to_pct(df.iloc[i + h - 1]['종가'], curr_p)
+
+                            future_price = df.iloc[i+h]['종가']
+                            actual_p = to_pct(future_price, curr_p)
                             current_vol = vol_res.get('egarch', 0)
     
                             # 🛡️ 영차의 방어적 매매 조건
@@ -200,7 +201,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                                 strategy_return = 0.0       # 관망 (MDD 방어)
 
                             st.session_state.history.append({
-                                "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
+                                "date": df.index[i].date(), "actual": future_price, 
                                 "pred": curr_p * (1 + final_pred_pct / 100),
                                 "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0),
                                 "return": strategy_return,
