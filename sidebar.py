@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import random
-from utils import get_tickers, get_numerical_analysis, get_volatility_models
+from utils import get_tickers, get_numerical_analysis, get_volatility_models, get_coin_tickers
 
 def render_sidebar_inputs():
     with st.sidebar:
@@ -15,26 +15,36 @@ def render_sidebar_inputs():
         target_date = st.date_input("📅 분석 기준일 선택", today)
 
         st.write("---")
+        market_type = st.radio("🌐 시장 선택", ["주식 (한국)", "가상화폐 (KRW)"], horizontal=True)
         
-        search_word = st.text_input("🔍 종목명 입력", "삼성전자").strip().lower()
-        ticker_dict = get_tickers()
-        matched_names = [name for name in ticker_dict.keys() if search_word in name.lower()]
+        if market_type == "주식 (한국)":
+            search_word = st.text_input("🔍 종목명 입력", "삼성전자").strip().lower()
+            ticker_dict = get_tickers()
+            default_name, default_ticker = "삼성전자", "005930"
+        else:
+            search_word = st.text_input("🔍 코인 심볼 입력 (예: BTC)", "BTC").strip().upper()
+            ticker_dict = get_coin_tickers()
+            default_name, default_ticker = "BTC", "KRW-BTC"
+            
+        matched_names = [name for name in ticker_dict.keys() if search_word in name.upper() or search_word in name.lower()]
         
         if matched_names:
             selected_name = st.selectbox("🎯 검색 결과 중 선택", matched_names)
             ticker = ticker_dict[selected_name]
-        elif search_word and search_word != "삼성전자":
-            st.error("❌ 일치하는 종목이 없습니다.")
-            selected_name, ticker = "삼성전자", "005930"
+        elif search_word:
+            st.error("❌ 일치하는 종목/코인이 없습니다.")
+            selected_name, ticker = default_name, default_ticker
         else:
-            selected_name, ticker = "삼성전자", "005930"
+            selected_name, ticker = default_name, default_ticker
 
         step_size = st.radio("⏱️ 예측 주기 설정", [1, 5], format_func=lambda x: f"{x}일 기준 예측")
         
         models = {"hybrid": True, "rk4": False, "newton": False, "euler": False, "simpson": False}
         vol_models = {"egarch": False, "gjr_garch": False}
         
+        # 반환값에 market_type 추가
         return {
+            "market_type": market_type,
             "target_date": target_date, "selected_name": selected_name, 
             "ticker": ticker, "step_size": step_size,
             "models": models, "vol_models": vol_models,
