@@ -77,40 +77,43 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if target_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
 
-    # 🎯 AI의 과거 예측 기록 (X표시와 점선)
-    # 이 부분을 캔들스틱 이후에 배치해야 가격 위에 잘 보입니다.
+    # 🎯 AI의 과거 예측 기록 (X표시와 초록색 별)
     if 'history' in st.session_state and len(st.session_state.history) > 0:
         hist_df = pd.DataFrame(st.session_state.history)
         hist_df['date_str'] = pd.to_datetime(hist_df['date']).dt.strftime('%Y-%m-%d')
-        
-        # 차트 범위 내에 있는 날짜만 필터링 (가독성 위해)
         plot_hist = hist_df[hist_df['date_str'].isin(extended_x_labels)]
         
+        # 🟢 1. 매수 진입 구간 (is_buy가 True인 날) - 초록색 별
         if 'is_buy' in plot_hist.columns:
-        # 🟢 1. 매수 진입 구간 (조건 만족) - 초록색 별
-        buy_df = plot_hist[plot_hist['is_buy'] == True]
-        if not buy_df.empty:
+            buy_df = plot_hist[plot_hist['is_buy'] == True]
+            if not buy_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=buy_df['date_str'], y=buy_df['pred'],
+                    mode='markers', name="AI 매수 진입",
+                    marker=dict(size=12, color='#00C805', symbol='star', line=dict(width=1, color='white'))
+                ), row=1, col=1)
+
+            # ⚪ 2. 관망 구간 (is_buy가 False인 날) - 흐린 회색 X
+            watch_df = plot_hist[plot_hist['is_buy'] == False]
+            if not watch_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=watch_df['date_str'], y=watch_df['pred'],
+                    mode='markers', name="관망 (리스크 관리)",
+                    marker=dict(size=7, color='rgba(150, 150, 150, 0.5)', symbol='x')
+                ), row=1, col=1)
+        else:
+            # 아직 데이터가 갱신되지 않은 경우 기본 빨간 X 표시
             fig.add_trace(go.Scatter(
-                x=buy_df['date_str'], y=buy_df['pred'],
-                mode='markers', name="AI 매수 진입",
-                marker=dict(size=12, color='#00C805', symbol='star', line=dict(width=1, color='white'))
+                x=plot_hist['date_str'], y=plot_hist['pred'],
+                mode='markers', name="예측 (데이터 갱신 필요)",
+                marker=dict(size=8, color='#FF4B4B', symbol='x')
             ), row=1, col=1)
 
-        # ⚪ 2. 관망 구간 (조건 미달) - 흐린 회색 X
-        watch_df = plot_hist[plot_hist['is_buy'] == False]
-        if not watch_df.empty:
-            fig.add_trace(go.Scatter(
-                x=watch_df['date_str'], y=watch_df['pred'],
-                mode='markers', name="관망 (리스크 관리)",
-                marker=dict(size=7, color='rgba(150, 150, 150, 0.5)', symbol='x')
-            ), row=1, col=1)
-    else:
-        # 'is_buy'가 없을 때는 기존처럼 기본 X로 표시 (에러 방지용)
-        fig.add_trace(go.Scatter(
-            x=plot_hist['date_str'], y=plot_hist['pred'],
-            mode='markers', name="예측 (데이터 갱신 필요)",
-            marker=dict(size=8, color='#FF4B4B', symbol='x')
-        ), row=1, col=1)
+    fig.update_layout(
+        template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
+        xaxis=dict(type='category', categoryorder='array', categoryarray=extended_x_labels, tickangle=-45)
+    )
+    return fig
 
     # 3. 예측 흐름 점선 (전체 흐름 파악용)
     fig.add_trace(go.Scatter(
