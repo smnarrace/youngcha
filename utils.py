@@ -3,6 +3,7 @@ import numpy as np
 from pykrx import stock
 import streamlit as st
 from arch import arch_model
+import pyupbit
 
 def get_numerical_analysis(prices, h=1):
     if len(prices) < 10: return {"euler": prices[-1], "rk4": prices[-1], "newton": prices[-1], "simpson": 0}
@@ -60,7 +61,12 @@ def get_tickers():
     # 1. 안전한 날짜 찾기 로직
     # 현재 시각을 기준으로, 장이 열리지 않은 주말이나 새벽이라면 전날 데이터를 찾음
     now = datetime.datetime.now()
-    
+    def get_coin_tickers():
+        try:
+            tickers = pyupbit.get_tickers(fiat="KRW")
+            return {t.split('-')[1]: t for t in tickers}
+        except Exception as e:
+            return {"BTC": "KRW-BTC"}
     # 주말(토:5, 일:6)이면 금요일로 이동
     if now.weekday() == 5: # 토요일
         target_dt = now - datetime.timedelta(days=1)
