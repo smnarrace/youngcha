@@ -80,36 +80,30 @@ def render_sidebar_actions(df, target_date_ts, config):
             window_size, h = 60, config['step_size']
             max_idx = df.index.get_loc(target_date_ts)
             
-            # [수정] 전체 과거 데이터(max_idx 이전)를 탐색 범위로 설정
             if max_idx < 150:
                 st.error("학습을 위한 데이터가 충분하지 않습니다 (최소 150일 필요).")
             else:
                 with st.spinner("과거 데이터에서 시장 국면별 샘플 추출 중..."):
                     temp_df = df.iloc[window_size : max_idx].copy()
                     
-                    # 1. 등락률 기준으로 인덱스 분류 (Market Regime)
-                    bear_idx = temp_df[temp_df['등락률'] < -2.0].index.tolist() # 급락장
-                    bull_idx = temp_df[temp_df['등락률'] > 2.0].index.tolist()  # 급등장
-                    side_idx = temp_df[(temp_df['등락률'] >= -2.0) & (temp_df['등락률'] <= 2.0)].index.tolist() # 횡보장
+                    bear_idx = temp_df[temp_df['등락률'] < -2.0].index.tolist()
+                    bull_idx = temp_df[temp_df['등락률'] > 2.0].index.tolist() 
+                    side_idx = temp_df[(temp_df['등락률'] >= -2.0) & (temp_df['등락률'] <= 2.0)].index.tolist()
                     
-                    # 2. 전략적 샘플링 비율 (방어형: 하락 데이터 40% 강제 할당)
                     sample_indices = []
-                    target_total = 200 # 총 200개의 다양한 케이스 학습
+                    target_total = 200 
                     
-                    # 각 국면에서 추출할 개수 설정
                     configs = [
-                        (bear_idx, int(target_total * 0.4)), # 하락장 80개
-                        (side_idx, int(target_total * 0.3)), # 횡보장 60개
-                        (bull_idx, int(target_total * 0.3))  # 상승장 60개
+                        (bear_idx, int(target_total * 0.4)), 
+                        (side_idx, int(target_total * 0.3)), 
+                        (bull_idx, int(target_total * 0.3))  
                     ]
                     
                     for pool, count in configs:
                         if len(pool) > 0:
-                            # 해당 풀에서 가용한 만큼 랜덤 추출
                             chosen = random.sample(pool, min(len(pool), count))
                             sample_indices.extend([df.index.get_loc(c) for c in chosen])
                     
-                    # 샘플들을 랜덤하게 섞음 (시계열 편향 제거)
                     random.shuffle(sample_indices)
 
                 with st.spinner(f"{len(sample_indices)}개 균형 샘플로 학습 진행 중..."):
@@ -169,14 +163,17 @@ def render_sidebar_actions(df, target_date_ts, config):
                         newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
                         base_p = (euler_p + rk4_p + newton_p) / 3
 
+                        # [핵심 변경 1] i-1 이었던 보조 지표들을 i(오늘)로 변경
                         X_static_test = np.array([[
                             base_p, euler_p, rk4_p, newton_p, 
                             vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0), 
-                            df.iloc[i - 1].get('RSI', 50), df.iloc[i - 1].get('거래량_변동률', 0)
+                            df.iloc[i].get('RSI', 50),         # 오늘(i)의 RSI
+                            df.iloc[i].get('거래량_변동률', 0)  # 오늘(i)의 거래량 변동률
                         ]], dtype=np.float32)
                         
+                        # [핵심 변경 2] 가격 시퀀스도 i(오늘)까지 포함하도록 슬라이싱 변경 (i-59 ~ i+1)
                         pred_res = st.session_state.hybrid_model.predict(
-                            np.nan_to_num(df.iloc[i - 60 : i]['등락률'].values.reshape(1, 60, 1)), 
+                            np.nan_to_num(df.iloc[i - 59 : i + 1]['등락률'].values.reshape(1, 60, 1)), 
                             np.nan_to_num(X_static_test)
                         )
                         
@@ -187,6 +184,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                             dynamic_base = (euler_p * w_euler) + (rk4_p * w_rk4) + (newton_p * w_newton)
                             final_pred_pct = dynamic_base + ai_residual
 
+                            # 미래 결과 확인
                             future_price = df.iloc[i+h]['종가']
                             actual_p = to_pct(future_price, curr_p)
                             current_vol = vol_res.get('egarch', 0)
@@ -195,6 +193,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                             is_confident = final_pred_pct > config['buy_threshold']
                             is_stable_market = current_vol < config['vol_limit']
                             is_buy = is_confident and is_stable_market
+                            
                             if is_buy:
                                 strategy_return = actual_p  # 진입
                             else:
