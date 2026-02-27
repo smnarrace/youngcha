@@ -2,8 +2,9 @@ import streamlit as st
 import datetime
 import pandas as pd
 from pykrx import stock
+import pyupbit
 from utils import calculate_indicators, get_numerical_analysis, get_volatility_models
-from sidebar import render_sidebar_inputs, render_sidebar_actions # 분리된 함수 임포트
+from sidebar import render_sidebar_inputs, render_sidebar_actions 
 from charts import draw_chart
 from results import render_results
 from model import YoungChaHybridModel
@@ -13,19 +14,29 @@ st.set_page_config(page_title="영차 AI 연구소", page_icon="📈", layout="w
 if 'hybrid_model' not in st.session_state:
     st.session_state.hybrid_model = YoungChaHybridModel()
 
-# 1. 설정값 먼저 받기 (중복 호출 에러 원인 제거)
+# 1. 설정값 먼저 받기
 config = render_sidebar_inputs()
 
-# 2. 데이터 로드
-end_date_str = config['target_date'].strftime("%Y%m%d")
-start_date_str = (config['target_date'] - datetime.timedelta(days=750)).strftime("%Y%m%d")
-df = stock.get_market_ohlcv(start_date_str, end_date_str, config['ticker'])
+# 2. 데이터 로드 (시장 타입에 따라 분기)
+if config['market_type'] == "주식 (한국)":
+    end_date_str = config['target_date'].strftime("%Y%m%d")
+    start_date_str = (config['target_date'] - datetime.timedelta(days=750)).strftime("%Y%m%d")
+    df = stock.get_market_ohlcv(start_date_str, end_date_str, config['ticker'])
+else:
+    # 가상화폐 데이터 로드 (pyupbit)
+    to_date = config['target_date'] + datetime.timedelta(days=1) 
+    # pyupbit는 timezone 처리 때문에 시간 지정이 필요할 수 있으나 기본적으로 일봉(day) 지원
+    df = pyupbit.get_ohlcv(config['ticker'], interval="day", count=750, to=to_date)
+    
+    if df is not None and not df.empty:
+        # 기존 주식 코드와 호환되도록 컬럼명 강제 변경
+        df = df.rename(columns={'open': '시가', 'high': '고가', 'low': '저가', 'close': '종가', 'volume': '거래량'})
 
-if not df.empty:
+if df is not None and not df.empty:
     df = calculate_indicators(df)
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
     
-    # 휴장일 처리
+    # 휴장일 처리 (코인은 연중무휴지만, 주식 로직 호환을 위해 유지)
     if target_date_ts not in df.index:
         valid_dates = df.index[df.index <= target_date_ts]
         if not valid_dates.empty:
@@ -34,7 +45,7 @@ if not df.empty:
         else:
             st.error("데이터가 없습니다."); st.stop()
 
-    # 3. 사이드바 하단 버튼들 출력 (여기서 딱 한 번만 호출!)
+    # 3. 사이드바 하단 버튼들 출력
     render_sidebar_actions(df, target_date_ts, config)
 
     # 4. 분석 결과 출력
@@ -53,3 +64,5 @@ if not df.empty:
         st.plotly_chart(draw_chart(df, config, vol_results, predictions), use_container_width=True)
     with col2:
         render_results(df, config, vol_results=vol_results, predictions=predictions)
+else:
+    st.error("데이터를 불러오지 못했습니다. 종목 코드나 날짜를 확인해주세요.")
