@@ -113,25 +113,25 @@ def render_sidebar_actions(df, target_date_ts, config):
                     for idx in sample_indices:
                         if idx + h >= len(df) or idx < window_size: continue
                         
-                        curr_p = df.iloc[idx - 1]['종가']
-                        num_res = get_numerical_analysis(df.iloc[:idx]['종가'].values, h=h)
-                        vol_res = get_volatility_models(df.iloc[:idx]['종가'].values)
+                        curr_p = df.iloc[idx]['종가']
+                        num_res = get_numerical_analysis(df.iloc[:idx+1]['종가'].values, h=h)
+                        vol_res = get_volatility_models(df.iloc[:idx+1]['종가'].values)
 
                         euler_p = to_pct(num_res.get('euler', curr_p), curr_p)
                         rk4_p = to_pct(num_res.get('rk4', curr_p), curr_p)
                         newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
                         base_p = (euler_p + rk4_p + newton_p) / 3
 
-                        actual_p = to_pct(df.iloc[idx + h - 1]['종가'], curr_p)
+                        actual_p = to_pct(df.iloc[idx + h]['종가'], curr_p)
 
                         static_feats = [
                             base_p, euler_p, rk4_p, newton_p,
                             vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0),
-                            df.iloc[idx - 1].get('RSI', 50),
-                            df.iloc[idx - 1].get('거래량_변동률', 0)
+                            df.iloc[idx].get('RSI', 50),
+                            df.iloc[idx].get('거래량_변동률', 0)
                         ]
                         
-                        X_seq_list.append(df.iloc[idx - window_size : idx]['등락률'].values)
+                        X_seq_list.append(df.iloc[idx - window_size +1 : idx + 1]['등락률'].values)
                         X_static_list.append(static_feats)
                         y_actual_list.append(actual_p)
                         y_base_list.append(base_p)
