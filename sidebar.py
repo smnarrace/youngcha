@@ -193,8 +193,8 @@ def render_sidebar_actions(df, target_date_ts, config):
                             # 🛡️ 영차의 방어적 매매 조건
                             is_confident = final_pred_pct > config['buy_threshold']
                             is_stable_market = current_vol < config['vol_limit']
-                        
-                            if is_confident and is_stable_market:
+                            is_buy = is_confident and is_stable_market
+                            if is_buy:
                                 strategy_return = actual_p  # 진입
                             else:
                                 strategy_return = 0.0       # 관망 (MDD 방어)
@@ -203,6 +203,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                                 "date": df.index[i].date(), "actual": df.iloc[i + h - 1]['종가'], 
                                 "pred": curr_p * (1 + final_pred_pct / 100),
                                 "hit": (final_pred_pct > 0 and actual_p > 0) or (final_pred_pct < 0 and actual_p < 0),
-                                "return": strategy_return
+                                "return": strategy_return,
+                                "is_buy": is_buy
                             })
                     st.success("검증 완료"); st.rerun()
