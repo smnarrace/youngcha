@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# 1. 하이브리드 모델 입력 데이터 변환
+# 1. 하이브리드 모델 입력 데이터 변환 (기존과 동일)
 def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=60):
     if '등락률' not in df.columns:
         df['등락률'] = df['종가'].pct_change() * 100
@@ -34,12 +34,11 @@ def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=6
             float(df.iloc[target_idx].get('거래량_변동률', 0))
         ]], dtype=np.float32)
         
-        # [수정] 나중에 가중치 계산을 위해 3개 모델의 등락률도 같이 반환
         return np.nan_to_num(X_seq), np.nan_to_num(X_static), euler_p, rk4_p, newton_p
     except Exception as e:
         return None, None, 0, 0, 0
 
-# 2. 메인 결과 렌더링 함수
+# 2. 메인 결과 렌더링 함수 (기존과 동일)
 def render_results(df, config, vol_results=None, predictions=None):
     st.subheader(f"🎯 AI 분석 리포트 (Dynamic v3)")
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
@@ -62,17 +61,14 @@ def render_results(df, config, vol_results=None, predictions=None):
             if X_seq is not None:
                 pred_res = st.session_state.hybrid_model.predict(X_seq, X_static)
                 
-                # [핵심] 결과값이 2개(보정치, 가중치)인지 확인
                 if pred_res is not None and len(pred_res) == 2:
                     ai_residual, ai_weights = pred_res
                     w_euler, w_rk4, w_newton = ai_weights
                     
-                    # AI 가중치를 적용한 새로운 베이스라인 계산
                     dynamic_base = (euler_p * w_euler) + (rk4_p * w_rk4) + (newton_p * w_newton)
                     final_pred_pct = dynamic_base + ai_residual
                     hybrid_pred_val = prev_price * (1 + final_pred_pct / 100)
                     
-                    # 결과 지표 출력
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         st.metric("최종 예측 등락", f"{final_pred_pct:+.2f}%", delta=f"AI보정: {ai_residual:+.2f}%")
@@ -86,7 +82,6 @@ def render_results(df, config, vol_results=None, predictions=None):
                         else:
                             st.metric("예측 오차율", "데이터 대기 중")
                     
-                    # [추가] AI 가중치 시각화
                     st.write("---")
                     st.markdown("🤖 **AI의 실시간 모델 신뢰도 분석 (Dynamic Gating)**")
                     w_col1, w_col2, w_col3 = st.columns(3)
@@ -105,11 +100,49 @@ def render_results(df, config, vol_results=None, predictions=None):
             else:
                 st.info("💡 과거 데이터 부족으로 AI 분석이 불가능합니다.")
 
-# (render_performance_visuals는 기존과 동일)
+# [업그레이드] 수익성 검증 시각화 함수
 def render_performance_visuals():
     hist_df = pd.DataFrame(st.session_state.history).sort_values("date")
-    hit_rate = (hist_df['hit'].sum() / len(hist_df)) * 100
     
+    # 1. 수익성 지표 계산
+    # 누적 수익률 (복리: 1.1 * 0.9 = 0.99 방식)
+    returns = hist_df['return'] / 100
+    cum_returns = (1 + returns).cumprod()
+    hist_df['cum_return_pct'] = (cum_returns - 1) * 100
+    
+    # MDD 계산 (최고점 대비 최대 하락폭)
+    rolling_max = cum_returns.cummax()
+    drawdown = (cum_returns - rolling_max) / rolling_max
+    mdd = drawdown.min() * 100
+    
+    hit_rate = (hist_df['hit'].sum() / len(hist_df)) * 100
+    final_profit = hist_df['cum_return_pct'].iloc[-1]
+
+    # 2. 요약 지표 출력
+    st.markdown("### 📊 30일 수익성 검증 리포트")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("방향 적중률", f"{hit_rate:.1f}%")
+    m2.metric("누적 수익률", f"{final_profit:+.2f}%", delta=f"{hist_df['return'].iloc[-1]:+.2f}% (최근)")
+    m3.metric("최대 낙폭 (MDD)", f"{mdd:.2f}%", help="검증 기간 중 최고점 대비 가장 많이 하락했던 비율입니다.")
+
+    # 3. 누적 수익률 차트 (추가)
+    fig_cum = go.Figure()
+    fig_cum.add_trace(go.Scatter(
+        x=hist_df['date'], 
+        y=hist_df['cum_return_pct'], 
+        fill='tozeroy', 
+        name="누적 수익률",
+        line=dict(color="#00C805" if final_profit >= 0 else "#FF4B4B", width=3)
+    ))
+    fig_cum.update_layout(
+        title="AI 전략 누적 수익률 추이 (%)",
+        height=250, margin=dict(l=10, r=10, t=40, b=10),
+        template="plotly_dark",
+        yaxis=dict(ticksuffix="%")
+    )
+    st.plotly_chart(fig_cum, use_container_width=True)
+
+    # 4. 기존 실제가 vs 예측가 차트 (하단으로 이동)
     col_g, col_t = st.columns([1, 2])
     with col_g:
         fig_gauge = go.Figure(go.Indicator(
@@ -117,17 +150,16 @@ def render_performance_visuals():
             title = {'text': "방향 적중률", 'font': {'size': 16}},
             gauge = {
                 'axis': {'range': [0, 100]}, 
-                'bar': {'color': "#00C805" if hit_rate >= 55 else "#FF4B4B"},
-                'steps': [{'range': [0, 50], 'color': "#f4f4f4"}],
-                'threshold': {'line': {'color': "black", 'width': 3}, 'value': 60}
+                'bar': {'color': "#1C83E1"},
+                'threshold': {'line': {'color': "white", 'width': 3}, 'value': 60}
             }
         ))
-        fig_gauge.update_layout(height=220, margin=dict(l=20, r=20, t=40, b=20))
+        fig_gauge.update_layout(height=200, margin=dict(l=20, r=20, t=40, b=20))
         st.plotly_chart(fig_gauge, use_container_width=True)
     
     with col_t:
         fig_trend = go.Figure()
         fig_trend.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['actual'], name="실제가", line=dict(color="#1C83E1")))
         fig_trend.add_trace(go.Scatter(x=hist_df['date'], y=hist_df['pred'], name="AI예측", line=dict(color="#FF4B4B", dash='dot')))
-        fig_trend.update_layout(height=220, margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h"))
+        fig_trend.update_layout(title="예측 트렌드 점검", height=200, margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h"))
         st.plotly_chart(fig_trend, use_container_width=True)
