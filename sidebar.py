@@ -14,7 +14,7 @@ def render_sidebar_inputs():
         today = datetime.date.today()
         target_date = st.date_input("📅 분석 기준일 선택", today)
         
-        # [업그레이드] 검증 기간 슬라이더 추가
+        # 📅 [개선] 검증 기간 슬라이더 (백테스팅 기간 조절)
         val_days = st.slider(
             "📅 검증 기간 설정 (일)", 10, 365, 30, 
             help="백테스팅을 진행할 과거 기간을 설정합니다. (최대 1년)"
@@ -23,7 +23,7 @@ def render_sidebar_inputs():
         st.write("---")
         market_type = st.radio("🌐 시장 선택", ["주식 (한국)", "가상화폐 (KRW)"], horizontal=True)
         
-        # 🛡️ 방어 전략 설정 UI
+        # 🛡️ 영차의 방어 전략 설정 UI
         buy_threshold = st.slider(
             "🎯 매수 문턱값 (%)", 1.0, 3.0, 1.0, step=0.1,
             help="AI의 상승 예측치가 이 값보다 높을 때만 매수합니다."
@@ -43,7 +43,7 @@ def render_sidebar_inputs():
             ticker_dict = get_coin_tickers()
             default_name, default_ticker = "BTC", "KRW-BTC"
             
-        # [수정 핵심] 검색어와 대상 텍스트를 모두 소문자로 통일하고, 이름과 티커를 동시에 뒤집니다.
+        # 🔍 [개선] 검색 로직: 이름과 코드를 모두 소문자로 변환하여 대조 (테크, 시멘트 등 소형주 검색용)
         clean_query = search_word.lower()
         matched_names = [
             name for name, tk in ticker_dict.items() 
@@ -51,7 +51,7 @@ def render_sidebar_inputs():
         ]
         
         if matched_names:
-            selected_name = st.selectbox("🎯 검색 결과 중 선택", matched_names)
+            selected_name = st.selectbox("🎯 검색 결과 중 선택", sorted(matched_names))
             ticker = ticker_dict[selected_name]
         elif search_word:
             st.error(f"❌ '{search_word}'와(과) 일치하는 결과가 없습니다.")
@@ -61,6 +61,7 @@ def render_sidebar_inputs():
 
         step_size = st.radio("⏱️ 예측 주기 설정", [1, 5], format_func=lambda x: f"{x}일 기준 예측")
         
+        # 내부 설정용 (기본값)
         models = {"hybrid": True, "rk4": False, "newton": False, "euler": False, "simpson": False}
         vol_models = {"egarch": False, "gjr_garch": False}
         
@@ -87,7 +88,7 @@ def render_sidebar_actions(df, target_date_ts, config):
         def to_pct(val, base):
             return ((val - base) / base) * 100 if base != 0 else 0
 
-        # --- 버튼 1: 모델 학습 (전략적 균형 샘플링) ---
+        # --- 🚀 버튼 1: 모델 학습 (시장 국면별 균형 샘플링 로직) ---
         if st.button("🚀 모델 전천후 학습 시작"):
             window_size, h = 60, config['step_size']
             max_idx = df.index.get_loc(target_date_ts)
@@ -105,6 +106,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                     sample_indices = []
                     target_total = 200 
                     
+                    # 하락 40% : 횡보 30% : 상승 30% 비율로 샘플링하여 학습 강건성 확보
                     configs = [
                         (bear_idx, int(target_total * 0.4)), 
                         (side_idx, int(target_total * 0.3)), 
@@ -143,7 +145,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                             df.iloc[idx].get('거래량_변동률', 0)
                         ]
                         
-                        X_seq_list.append(df.iloc[idx - window_size +1 : idx + 1]['등락률'].values)
+                        X_seq_list.append(df.iloc[idx - window_size + 1 : idx + 1]['등락률'].values)
                         X_static_list.append(static_feats)
                         y_actual_list.append(actual_p)
                         y_base_list.append(base_p)
@@ -156,7 +158,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                     )
                     st.success("균형 학습 완료!"); st.rerun()
 
-        # --- 버튼 2: 검증 (동적 기간 적용) ---
+        # --- 🔍 버튼 2: 검증 (사용자가 설정한 val_days 기간 동안 백테스팅) ---
         val_label = f"🔍 현재 모델로 이 구간 검증 ({config['val_days']}일)" 
         if st.button(val_label):
             if not st.session_state.hybrid_model.is_trained:
@@ -165,6 +167,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                 with st.spinner(f"{config['val_days']}일간 다이내믹 검증 중..."):
                     st.session_state.history = []
                     h, val_idx = config['step_size'], df.index.get_loc(target_date_ts)
+                    # 📅 [수정] 30일 고정이 아닌 config['val_days']를 사용하여 동적 기간 설정
                     start_idx = val_idx - config['val_days']
                     
                     for i in range(start_idx, val_idx + 1):
@@ -178,6 +181,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                         newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
                         base_p = (euler_p + rk4_p + newton_p) / 3
 
+                        # 검증 시점 i의 보조지표 활용
                         X_static_test = np.array([[
                             base_p, euler_p, rk4_p, newton_p, 
                             vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0), 
@@ -201,6 +205,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                             actual_p = to_pct(future_price, curr_p)
                             current_vol = vol_res.get('egarch', 0)
     
+                            # 매수 조건 판단
                             is_confident = final_pred_pct > config['buy_threshold']
                             is_stable_market = current_vol < config['vol_limit']
                             is_buy = is_confident and is_stable_market
