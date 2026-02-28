@@ -119,7 +119,7 @@ def render_performance_visuals():
     final_profit = hist_df['cum_return_pct'].iloc[-1]
 
     # 2. 요약 지표 출력
-    st.markdown("### 📊 30일 수익성 검증 리포트")
+    st.markdown("### 📊 {len(hist_df)}일 수익성 검증 리포트")
     m1, m2, m3 = st.columns(3)
     m1.metric("방향 적중률", f"{hit_rate:.1f}%")
     m2.metric("누적 수익률", f"{final_profit:+.2f}%", delta=f"{hist_df['return'].iloc[-1]:+.2f}% (최근)")
