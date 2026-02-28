@@ -32,21 +32,26 @@ def render_sidebar_inputs():
         )
 
         if market_type == "주식 (한국)":
-            search_word = st.text_input("🔍 종목명 입력", "삼성전자").strip().lower()
+            search_word = st.text_input("🔍 종목명 또는 코드 입력", "삼성전자").strip()
             ticker_dict = get_tickers()
             default_name, default_ticker = "삼성전자", "005930"
         else:
-            search_word = st.text_input("🔍 코인 심볼 입력 (예: BTC)", "BTC").strip().upper()
+            search_word = st.text_input("🔍 코인 이름 또는 심볼 입력", "BTC").strip()
             ticker_dict = get_coin_tickers()
             default_name, default_ticker = "BTC", "KRW-BTC"
             
-        matched_names = [name for name in ticker_dict.keys() if search_word in name.upper() or search_word in name.lower()]
+        # [수정 핵심] 검색어와 대상 텍스트를 모두 소문자로 통일하고, 이름과 티커를 동시에 뒤집니다.
+        clean_query = search_word.lower()
+        matched_names = [
+            name for name, tk in ticker_dict.items() 
+            if clean_query in name.lower() or clean_query in tk.lower()
+        ]
         
         if matched_names:
             selected_name = st.selectbox("🎯 검색 결과 중 선택", matched_names)
             ticker = ticker_dict[selected_name]
         elif search_word:
-            st.error("❌ 일치하는 종목/코인이 없습니다.")
+            st.error(f"❌ '{search_word}'와(과) 일치하는 결과가 없습니다.")
             selected_name, ticker = default_name, default_ticker
         else:
             selected_name, ticker = default_name, default_ticker
@@ -79,7 +84,7 @@ def render_sidebar_actions(df, target_date_ts, config):
         def to_pct(val, base):
             return ((val - base) / base) * 100 if base != 0 else 0
 
-        # --- 버튼 1: 모델 학습 (전략적 균형 샘플링 도입) ---
+        # --- 버튼 1: 모델 학습 (기존 유지) ---
         if st.button("🚀 모델 전천후 학습 시작"):
             window_size, h = 60, config['step_size']
             max_idx = df.index.get_loc(target_date_ts)
@@ -148,7 +153,7 @@ def render_sidebar_actions(df, target_date_ts, config):
                     )
                     st.success("균형 학습 완료!"); st.rerun()
 
-        # --- 버튼 2: 검증 (변동성 필터 및 문턱값 적용) ---
+        # --- 버튼 2: 검증 (기존 유지) ---
         val_label = f"🔍 현재 모델로 이 구간 검증 ({config['val_days']}일)" 
         if st.button(val_label):
             if not st.session_state.hybrid_model.is_trained:
@@ -169,15 +174,13 @@ def render_sidebar_actions(df, target_date_ts, config):
                         newton_p = to_pct(num_res.get('newton', curr_p), curr_p)
                         base_p = (euler_p + rk4_p + newton_p) / 3
 
-                        # [핵심 변경 1] i-1 이었던 보조 지표들을 i(오늘)로 변경
                         X_static_test = np.array([[
                             base_p, euler_p, rk4_p, newton_p, 
                             vol_res.get('egarch', 0), vol_res.get('gjr_garch', 0), 
-                            df.iloc[i].get('RSI', 50),         # 오늘(i)의 RSI
-                            df.iloc[i].get('거래량_변동률', 0)  # 오늘(i)의 거래량 변동률
+                            df.iloc[i].get('RSI', 50),
+                            df.iloc[i].get('거래량_변동률', 0)
                         ]], dtype=np.float32)
                         
-                        # [핵심 변경 2] 가격 시퀀스도 i(오늘)까지 포함하도록 슬라이싱 변경 (i-59 ~ i+1)
                         pred_res = st.session_state.hybrid_model.predict(
                             np.nan_to_num(df.iloc[i - 59 : i + 1]['등락률'].values.reshape(1, 60, 1)), 
                             np.nan_to_num(X_static_test)
@@ -190,12 +193,10 @@ def render_sidebar_actions(df, target_date_ts, config):
                             dynamic_base = (euler_p * w_euler) + (rk4_p * w_rk4) + (newton_p * w_newton)
                             final_pred_pct = dynamic_base + ai_residual
 
-                            # 미래 결과 확인
                             future_price = df.iloc[i+h]['종가']
                             actual_p = to_pct(future_price, curr_p)
                             current_vol = vol_res.get('egarch', 0)
     
-                            # 🛡️ 영차의 방어적 매매 조건
                             is_confident = final_pred_pct > config['buy_threshold']
                             is_stable_market = current_vol < config['vol_limit']
                             is_buy = is_confident and is_stable_market
