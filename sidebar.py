@@ -41,7 +41,7 @@ def render_sidebar_inputs():
             if len(ticker_dict) > 100:
                 st.caption(f"✅ 총 {len(ticker_dict):,}개 종목 로드 완료")
             else:
-                st.error("⚠️ 데이터 서버 접근 실패 (KRX 일시 차단 의심)")
+                st.error("")
                 
         else:
             search_word = st.text_input("🔍 코인 이름 또는 심볼 입력", "BTC").strip()
