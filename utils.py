@@ -64,7 +64,7 @@ def get_coin_tickers():
         return {"BTC": "KRW-BTC"}
 
 # 4. [완벽 해결] 주식 종목 리스트 확보
-@st.cache_data(ttl=3600) 
+@st.cache_data(ttl=86400) 
 def get_tickers():
     search_dt = datetime.datetime.now()
     
