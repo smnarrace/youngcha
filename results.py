@@ -85,7 +85,7 @@ def render_results(df, config, vol_results=None, predictions=None):
                     st.write("---")
                     
                     # ==========================================
-                    # 💡 짧고 굵은 종목 분석 리포트 (XAI)
+                    # 💡 이해하기 쉬운 종목 분석 리포트 (XAI)
                     # ==========================================
                     st.markdown("### 📋 종목 분석 리포트")
                     
@@ -94,9 +94,9 @@ def render_results(df, config, vol_results=None, predictions=None):
                     prob_color = "#00C805" if up_prob >= 50 else "#FF4B4B"
                     
                     st.markdown(f"**AI 상승 확률:** <span style='color:{prob_color}; font-size:1.3em; font-weight:bold;'>{up_prob:.0f}%</span>", unsafe_allow_html=True)
-                    st.write("") # 간격 띄우기
+                    st.write("") 
                     
-                    # 2. 예측 근거 (키워드 위주)
+                    # 2. 예측 근거 (수치 + 친절한 해석)
                     vol_change = df.iloc[target_idx].get('거래량_변동률', 0)
                     rsi_val = df.iloc[target_idx].get('RSI', 50)
                     egarch_val = vol_results.get('egarch', 0) if vol_results else 0
@@ -105,47 +105,47 @@ def render_results(df, config, vol_results=None, predictions=None):
                     
                     # (1) 거래량 지표
                     if vol_change > 50:
-                        reasons.append("거래량 이상 증가")
+                        reasons.append(f"**거래량 급증 ({vol_change:+.0f}%):** 전일 대비 거래량이 크게 늘어나며 새로운 매수 자금이 유입되는 패턴이 포착되었습니다.")
                     elif vol_change < -30:
-                        reasons.append("거래량 극감 및 방향성 응축")
+                        reasons.append(f"**거래량 축소 ({vol_change:+.0f}%):** 매도 물량이 마르면서 방향성을 결정하기 직전의 응축 단계입니다.")
                     else:
-                        reasons.append("평균 거래량 기반 추세 지지")
+                        reasons.append(f"**거래량 안정 유지:** 평소 수준의 거래량을 유지하며 기존의 가격 추세를 탄탄하게 지지하고 있습니다.")
                         
                     # (2) 변동성/RSI 지표
                     if egarch_val < 5.0 and rsi_val < 40:
-                        reasons.append("변동성 압축 후 확장 패턴")
+                        reasons.append(f"**반등 에너지 축적 (RSI {rsi_val:.1f}):** 주가가 바닥을 다지고 다시 상승할 수 있는 에너지가 충분히 모인 상태입니다.")
                     elif rsi_val > 65:
-                        reasons.append("단기 매수세 강세")
+                        reasons.append(f"**강한 상승 모멘텀 (RSI {rsi_val:.1f}):** 현재 시장의 매수 심리가 매우 강해 추세가 위로 열려 있습니다.")
                     else:
-                        reasons.append("안정적 보조지표 흐름 유지")
+                        reasons.append(f"**안정적 수급 (RSI {rsi_val:.1f}):** 시장이 과열되거나 침체되지 않고 정상적인 수급 흐름을 보이고 있습니다.")
                         
                     # (3) 역학 지표 (선행 신호)
                     if w_rk4 > 0.4:
-                        reasons.append("RK4 역학 기반 단기 선행 궤도 포착")
+                        reasons.append(f"**단기 가속도 진입 (RK4 비중 {w_rk4*100:.0f}%):** 알고리즘 분석 결과, 주가가 일시적으로 강하게 튀어 오를 수 있는 가속도 구간에 진입했습니다.")
                     elif w_newton > 0.4:
-                        reasons.append("Newton 역학 기반 추세 변곡점 진입")
+                        reasons.append(f"**추세 전환점 도달 (Newton 비중 {w_newton*100:.0f}%):** 기존의 하락(또는 상승) 흐름이 반대로 뒤집히는 결정적인 변곡점이 포착되었습니다.")
                     else:
-                        reasons.append("거시 지수 선행 신호 유지")
+                        reasons.append(f"**추세 유지 (Euler 비중 {w_euler*100:.0f}%):** 갑작스러운 변동보다는, 기존의 안정적인 우상향(우하향) 궤도를 그대로 따라가고 있습니다.")
 
                     st.markdown("**💡 AI 주가 예측 결과의 근거**")
                     for i, reason in enumerate(reasons, 1):
-                        st.write(f"{i}. {reason}")
+                        st.markdown(f"{i}. {reason}")
                         
-                    st.write("") # 간격 띄우기
+                    st.write("")
 
-                    # 3. 리스크 요인 (키워드 위주)
+                    # 3. 리스크 요인 (수치 + 친절한 해석)
                     risks = []
                     if egarch_val > 10.0:
-                        risks.append("비대칭 변동성(EGARCH) 급증")
+                        risks.append(f"**돌발 하락 주의 (EGARCH {egarch_val:.1f}):** 변동성이 커져 있어, 작은 악재에도 주가가 크게 흔들릴 수 있는 불안정한 상태입니다.")
                     if rsi_val > 70:
-                        risks.append("단기 과열로 인한 조정 가능성")
+                        risks.append(f"**단기 고점 과열 (RSI {rsi_val:.1f}):** 매수세가 너무 몰려 있어 차익 실현(매도) 물량이 쏟아지며 단기 조정을 받을 수 있습니다.")
                     if final_pred_pct < 0:
-                        risks.append("수치해석상 하방 궤도 진입")
+                        risks.append("**하방 압력 우세:** 알고리즘이 예측한 최종 물리적 궤도가 꺾여 있어 추가 하락 가능성을 열어두어야 합니다.")
                         
                     if not risks:
-                        risks.append("특이 리스크 없음")
+                        risks.append("현재 뚜렷한 기술적 악재나 급락 리스크 요인이 보이지 않습니다.")
 
-                    st.markdown("**⚠️ 리스크**")
+                    st.markdown("**⚠️ 리스크 및 주의사항**")
                     for risk in risks:
                         st.markdown(f"- {risk}")
 
@@ -157,7 +157,7 @@ def render_results(df, config, vol_results=None, predictions=None):
             else:
                 st.info("💡 과거 데이터 부족으로 AI 분석이 불가능합니다.")
 
-# [수익성 검증 시각화 함수]
+# [수익성 검증 시각화 함수] - 유지
 def render_performance_visuals():
     hist_df = pd.DataFrame(st.session_state.history).sort_values("date")
     
