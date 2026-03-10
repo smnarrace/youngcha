@@ -38,7 +38,7 @@ def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=6
     except Exception as e:
         return None, None, 0, 0, 0
 
-# 2. 메인 결과 렌더링 함수 (기존과 동일)
+# 2. 메인 결과 렌더링 함수 (XAI 종목 분석 기능 추가)
 def render_results(df, config, vol_results=None, predictions=None):
     st.subheader(f"🎯 AI 분석 리포트 (Dynamic v3)")
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
@@ -83,14 +83,67 @@ def render_results(df, config, vol_results=None, predictions=None):
                             st.metric("예측 오차율", "데이터 대기 중")
                     
                     st.write("---")
-                    st.markdown("🤖 **AI의 실시간 모델 신뢰도 분석 (Dynamic Gating)**")
-                    w_col1, w_col2, w_col3 = st.columns(3)
-                    w_col1.metric("Euler (안정/추세)", f"{w_euler*100:.1f}%")
-                    w_col2.metric("RK4 (정밀 추세)", f"{w_rk4*100:.1f}%")
-                    w_col3.metric("Newton (변곡점)", f"{w_newton*100:.1f}%")
                     
-                    best_model = max([("Euler", w_euler), ("RK4", w_rk4), ("Newton", w_newton)], key=lambda x: x[1])
-                    st.caption(f"💡 **AI 판단**: 과거 패턴 분석 결과, 현재 시장 흐름은 **{best_model[0]}** 모델의 계산과 가장 유사하여 해당 비중을 높였습니다.")
+                    # ==========================================
+                    # 💡 [핵심 업그레이드] Explainable AI (XAI) 종목 상세 분석
+                    # ==========================================
+                    st.markdown("### 🔍 AI 종목 상세 분석 (화이트박스 리포트)")
+                    
+                    # 1. AI 상승 확률 계산 (예측 퍼센트를 기반으로 10~95% 사이로 스케일링)
+                    up_prob = min(max(50 + (final_pred_pct * 15), 10), 95)
+                    prob_color = "#00C805" if up_prob >= 50 else "#FF4B4B"
+                    
+                    st.markdown(f"**🤖 AI 상승 확률:** <span style='color:{prob_color}; font-size:1.3em; font-weight:bold;'>{up_prob:.1f}%</span>", unsafe_allow_html=True)
+                    
+                    # 2. AI 예측 근거 추출 (실제 데이터 기반 동적 문장 생성)
+                    vol_change = df.iloc[target_idx].get('거래량_변동률', 0)
+                    rsi_val = df.iloc[target_idx].get('RSI', 50)
+                    egarch_val = vol_results.get('egarch', 0) if vol_results else 0
+                    
+                    reasons = []
+                    # 근거 1: 거래량 분석
+                    if vol_change > 50:
+                        reasons.append(f"거래량 급증(+{vol_change:.1f}%)에 따른 새로운 가격 모멘텀 형성")
+                    elif vol_change < -30:
+                        reasons.append(f"거래량 축소({vol_change:.1f}%)로 인한 방향성 응축 단계")
+                    else:
+                        reasons.append("평균 수준의 거래량 유지로 추세 안정화")
+                    
+                    # 근거 2: 수치해석 궤도 분석
+                    if w_rk4 > 0.4:
+                        reasons.append(f"Runge-Kutta(RK4) 역학 계산 상 강한 단기 선행 궤도 포착 (비중: {w_rk4*100:.1f}%)")
+                    elif w_newton > 0.4:
+                        reasons.append(f"Newton-Raphson 역학 기준 추세 변곡점 임박 신호 탐지 (비중: {w_newton*100:.1f}%)")
+                    else:
+                        reasons.append(f"Euler 기법에 따른 중장기 선형적 추세 유지 패턴 확인 (비중: {w_euler*100:.1f}%)")
+                        
+                    # 근거 3: 변동성 및 보조지표 분석
+                    if egarch_val < 5.0 and rsi_val < 40:
+                        reasons.append("변동성 압축 및 과매도 구간 도달로 인한 반등 에너지 응축 패턴")
+                    elif rsi_val > 65:
+                        reasons.append("상승 모멘텀 강세 유지 (과열 주의)")
+                    else:
+                        reasons.append(f"수치해석 궤도를 이탈하지 않는 안정적 보조지표 (RSI: {rsi_val:.1f})")
+
+                    st.markdown("#### 💡 AI 주가 예측 결과의 근거")
+                    for i, reason in enumerate(reasons, 1):
+                        st.write(f"**{i}.** {reason}")
+                        
+                    # 3. 리스크 도출
+                    risks = []
+                    if egarch_val > 10.0:
+                        risks.append(f"비대칭 변동성(EGARCH {egarch_val:.1f}) 급증에 따른 시장 이탈 및 급락 리스크")
+                    if rsi_val > 70:
+                        risks.append(f"단기 지표 과열(RSI {rsi_val:.1f})로 인한 일시적 가격 조정 리스크")
+                    if final_pred_pct < 0:
+                        risks.append("수치해석 역학 하방 궤도 진입에 따른 추가 하락 가능성")
+                        
+                    if not risks:
+                        risks.append("현재 뚜렷한 기술적 리스크 요인 없음 (안정적 상태)")
+
+                    st.markdown("#### ⚠️ 리스크 요인")
+                    for risk in risks:
+                        st.markdown(f"- <span style='color:#FF4B4B;'>{risk}</span>", unsafe_allow_html=True)
 
                     if 'history' in st.session_state and len(st.session_state.history) > 0:
                         st.divider()
@@ -100,17 +153,14 @@ def render_results(df, config, vol_results=None, predictions=None):
             else:
                 st.info("💡 과거 데이터 부족으로 AI 분석이 불가능합니다.")
 
-# [업그레이드] 수익성 검증 시각화 함수
+# [수익성 검증 시각화 함수] - 유지
 def render_performance_visuals():
     hist_df = pd.DataFrame(st.session_state.history).sort_values("date")
     
-    # 1. 수익성 지표 계산
-    # 누적 수익률 (복리: 1.1 * 0.9 = 0.99 방식)
     returns = hist_df['return'] / 100
     cum_returns = (1 + returns).cumprod()
     hist_df['cum_return_pct'] = (cum_returns - 1) * 100
     
-    # MDD 계산 (최고점 대비 최대 하락폭)
     rolling_max = cum_returns.cummax()
     drawdown = (cum_returns - rolling_max) / rolling_max
     mdd = drawdown.min() * 100
@@ -118,14 +168,12 @@ def render_performance_visuals():
     hit_rate = (hist_df['hit'].sum() / len(hist_df)) * 100
     final_profit = hist_df['cum_return_pct'].iloc[-1]
 
-    # 2. 요약 지표 출력
     st.markdown(f"### 📊 {len(hist_df)}일 수익성 검증 리포트")
     m1, m2, m3 = st.columns(3)
     m1.metric("방향 적중률", f"{hit_rate:.1f}%")
     m2.metric("누적 수익률", f"{final_profit:+.2f}%", delta=f"{hist_df['return'].iloc[-1]:+.2f}% (최근)")
     m3.metric("최대 낙폭 (MDD)", f"{mdd:.2f}%", help="검증 기간 중 최고점 대비 가장 많이 하락했던 비율입니다.")
 
-    # 3. 누적 수익률 차트 (추가)
     fig_cum = go.Figure()
     fig_cum.add_trace(go.Scatter(
         x=hist_df['date'], 
@@ -142,7 +190,6 @@ def render_performance_visuals():
     )
     st.plotly_chart(fig_cum, use_container_width=True)
 
-    # 4. 기존 실제가 vs 예측가 차트 (하단으로 이동)
     col_g, col_t = st.columns([1, 2])
     with col_g:
         fig_gauge = go.Figure(go.Indicator(
