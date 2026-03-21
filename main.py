@@ -14,7 +14,7 @@ st.set_page_config(page_title="영차 AI 연구소", page_icon="📈", layout="w
 if 'hybrid_model' not in st.session_state:
     st.session_state.hybrid_model = YoungChaHybridModel()
 
-# 1. 설정값 먼저 받기
+# 1. 설정값
 config = render_sidebar_inputs()
 
 # 2. 데이터 로드 (시장 타입에 따라 분기)
@@ -25,7 +25,6 @@ if config['market_type'] == "주식 (한국)":
 else:
     # 가상화폐 데이터 로드 (pyupbit)
     to_date = config['target_date'] + datetime.timedelta(days=1) 
-    # pyupbit는 timezone 처리 때문에 시간 지정이 필요할 수 있으나 기본적으로 일봉(day) 지원
     df = pyupbit.get_ohlcv(config['ticker'], interval="day", count=750, to=to_date)
     
     if df is not None and not df.empty:
@@ -36,7 +35,7 @@ if df is not None and not df.empty:
     df = calculate_indicators(df)
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
     
-    # 휴장일 처리 (코인은 연중무휴지만, 주식 로직 호환을 위해 유지)
+    # 휴장일 처리
     if target_date_ts not in df.index:
         valid_dates = df.index[df.index <= target_date_ts]
         if not valid_dates.empty:
