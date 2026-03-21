@@ -23,21 +23,16 @@ class YoungChaHybridModel:
         lstm_out = LSTM(64, return_sequences=True)(inputs)
         lstm_out = LSTM(32, return_sequences=True)(lstm_out)
         
-        # 어텐션 층
         attention_out = Attention()([lstm_out, lstm_out])
         avg_pool = GlobalAveragePooling1D()(attention_out)
         
-        # 특징 벡터
         features = Dense(16, activation='relu', name='features')(avg_pool)
         
-        # 3대 수치모델의 가중치를 결정하는 레이어
         weights_out = Dense(3, activation='softmax', name='weights')(features)
         
-        # 1. 가중치 학습용 전체 모델
         model = Model(inputs=inputs, outputs=weights_out)
         model.compile(optimizer='adam', loss='categorical_crossentropy')
         
-        # 2. 특징 추출용 보조 모델
         feature_extractor = Model(inputs=inputs, outputs=features)
         
         return model, feature_extractor
@@ -51,7 +46,6 @@ class YoungChaHybridModel:
         rk4_p = X_static[:, 2]
         newton_p = X_static[:, 3]
 
-        # 실제값과의 오차 계산
         err_e = np.abs(y_actual - euler_p) + 1e-5
         err_r = np.abs(y_actual - rk4_p) + 1e-5
         err_n = np.abs(y_actual - newton_p) + 1e-5
