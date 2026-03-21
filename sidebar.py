@@ -37,7 +37,6 @@ def render_sidebar_inputs():
             ticker_dict = get_tickers()
             default_name, default_ticker = "삼성전자", "005930"
             
-            # 🚀 [디버깅] 정상적으로 로드된 종목 개수 표시
             if len(ticker_dict) > 100:
                 st.caption(f"✅ 총 {len(ticker_dict):,}개 종목 로드 완료")
             else:
