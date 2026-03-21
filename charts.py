@@ -2,33 +2,30 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import datetime
-import streamlit as st  # 👈 [중요] 최상단으로 이동
+import streamlit as st
 
 def draw_chart(df, config, vol_results=None, predictions=None):
     # 인덱스 데이터 타입 보정 및 전체 날짜 정규화
     df.index = pd.to_datetime(df.index).normalize()
     view_df = df.tail(40)
     
-    # 🎯 1. 미래 날짜(내일) 한 칸 추가 로직
     x_labels = view_df.index.strftime('%Y-%m-%d').tolist()
     last_date = view_df.index[-1]
     next_date = last_date + datetime.timedelta(days=1)
     next_date_str = next_date.strftime('%Y-%m-%d')
-    
-    # 전체 X축 라벨: 기존 40개 + 미래 1개
+
     extended_x_labels = x_labels + [next_date_str]
     
-    # 위치 고정
-    pos_tomorrow = next_date_str  # 오늘의 예측이 표시될 내일 칸
-    pos_today = x_labels[-1]      # 어제의 예측이 표시될 오늘 캔들 칸
+ 
+    pos_tomorrow = next_date_str  
+    pos_today = x_labels[-1]      
     
     if config.get('show_rsi'):
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
     else:
         fig = make_subplots(rows=1, cols=1)
 
-    # 2. 변동성 구름대 및 수치해석 모델 점 (기존 영차님 로직 동일)
-    # ... [영차님 코드 유지] ...
+    # 2. 변동성 구름대 및 수치해석 모델 점
     active_vols = config.get('vol_models', {})
     if vol_results and predictions and any(active_vols.values()):
         base_price_tomorrow = None
@@ -77,13 +74,13 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if target_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
 
-    # 🎯 AI의 과거 예측 기록 (X표시와 초록색 별)
+    # AI의 과거 예측 기록 (X표시와 초록색 별)
     if 'history' in st.session_state and len(st.session_state.history) > 0:
         hist_df = pd.DataFrame(st.session_state.history)
         hist_df['date_str'] = pd.to_datetime(hist_df['date']).dt.strftime('%Y-%m-%d')
         plot_hist = hist_df[hist_df['date_str'].isin(extended_x_labels)]
         
-        # 🟢 1. 매수 진입 구간 (is_buy가 True인 날) - 초록색 별
+        # 1. 매수 진입 구간 - 초록색 별
         if 'is_buy' in plot_hist.columns:
             buy_df = plot_hist[plot_hist['is_buy'] == True]
             if not buy_df.empty:
@@ -93,7 +90,7 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                     marker=dict(size=12, color='#00C805', symbol='star', line=dict(width=1, color='white'))
                 ), row=1, col=1)
 
-            # ⚪ 2. 관망 구간 (is_buy가 False인 날) - 흐린 회색 X
+            # 2. 관망 구간 - 흐린 회색 X
             watch_df = plot_hist[plot_hist['is_buy'] == False]
             if not watch_df.empty:
                 fig.add_trace(go.Scatter(
