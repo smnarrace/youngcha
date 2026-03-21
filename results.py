@@ -84,9 +84,6 @@ def render_results(df, config, vol_results=None, predictions=None):
                     
                     st.write("---")
                     
-                    # ==========================================
-                    # 💡 이해하기 쉬운 종목 분석 리포트 (XAI)
-                    # ==========================================
                     st.markdown("### 📋 종목 분석 리포트")
                     
                     # 1. AI 상승 확률 (10~95% 스케일링)
@@ -96,7 +93,7 @@ def render_results(df, config, vol_results=None, predictions=None):
                     st.markdown(f"**AI 상승 확률:** <span style='color:{prob_color}; font-size:1.3em; font-weight:bold;'>{up_prob:.0f}%</span>", unsafe_allow_html=True)
                     st.write("") 
                     
-                    # 2. 예측 근거 (수치 + 친절한 해석)
+                    # 2. 예측 근거 (수치 + 해석)
                     vol_change = df.iloc[target_idx].get('거래량_변동률', 0)
                     rsi_val = df.iloc[target_idx].get('RSI', 50)
                     egarch_val = vol_results.get('egarch', 0) if vol_results else 0
@@ -133,7 +130,7 @@ def render_results(df, config, vol_results=None, predictions=None):
                         
                     st.write("")
 
-                    # 3. 리스크 요인 (수치 + 친절한 해석)
+                    # 3. 리스크 요인 (수치 + 해석)
                     risks = []
                     if egarch_val > 10.0:
                         risks.append(f"**돌발 하락 주의 (EGARCH {egarch_val:.1f}):** 변동성이 커져 있어, 작은 악재에도 주가가 크게 흔들릴 수 있는 불안정한 상태입니다.")
@@ -157,7 +154,7 @@ def render_results(df, config, vol_results=None, predictions=None):
             else:
                 st.info("💡 과거 데이터 부족으로 AI 분석이 불가능합니다.")
 
-# [수익성 검증 시각화 함수] - 유지
+# [수익성 검증 시각화 함수]
 def render_performance_visuals():
     hist_df = pd.DataFrame(st.session_state.history).sort_values("date")
     
