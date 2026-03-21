@@ -63,7 +63,7 @@ def get_coin_tickers():
     except Exception:
         return {"BTC": "KRW-BTC"}
 
-# 4. [완벽 해결] 주식 종목 리스트 확보
+# 4. 주식 종목 리스트 확보
 @st.cache_data(ttl=86400) 
 def get_tickers():
     search_dt = datetime.datetime.now()
@@ -71,13 +71,11 @@ def get_tickers():
     for _ in range(15):
         target_date = search_dt.strftime("%Y%m%d")
         try:
-            # 타임아웃을 막기 위해 코스피, 코스닥만 호출 (코넥스 제외)
             kse = stock.get_market_ticker_list(target_date, market="KOSPI")
             kdq = stock.get_market_ticker_list(target_date, market="KOSDAQ")
             
             all_tickers = list(set(kse + kdq))
             
-            # 500개 이상만 잡혀도 정상 데이터로 인정 (기준 완화)
             if all_tickers and len(all_tickers) > 500:
                 ticker_dict = {}
                 for t in all_tickers:
@@ -86,7 +84,7 @@ def get_tickers():
                         if name:
                             ticker_dict[name] = t
                     except:
-                        continue # 에러 나는 불량 종목은 패스
+                        continue
                 
                 if len(ticker_dict) > 500:
                     return ticker_dict
@@ -94,8 +92,7 @@ def get_tickers():
             pass
         
         search_dt -= datetime.timedelta(days=1)
-    
-    # 🚨 여기에 걸렸다면 KRX 서버 접근 차단 또는 인터넷 문제입니다.
+
     return {
         "서버접근_실패_상태": "000000", "삼성전자": "005930", "SK하이닉스": "000660",
         "에코프로": "086520", "HLB": "028300", "한일시멘트": "300720", "테크윙": "089030"
