@@ -5,7 +5,7 @@ import datetime
 import streamlit as st
 
 def draw_chart(df, config, vol_results=None, predictions=None):
-    # 인덱스 데이터 타입 보정 및 전체 날짜 정규화
+
     df.index = pd.to_datetime(df.index).normalize()
     view_df = df.tail(40)
     
@@ -15,7 +15,6 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     next_date_str = next_date.strftime('%Y-%m-%d')
 
     extended_x_labels = x_labels + [next_date_str]
-    
  
     pos_tomorrow = next_date_str  
     pos_today = x_labels[-1]      
@@ -25,7 +24,6 @@ def draw_chart(df, config, vol_results=None, predictions=None):
     else:
         fig = make_subplots(rows=1, cols=1)
 
-    # 2. 변동성 구름대 및 수치해석 모델 점
     active_vols = config.get('vol_models', {})
     if vol_results and predictions and any(active_vols.values()):
         base_price_tomorrow = None
@@ -43,17 +41,14 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                 fig.add_trace(go.Bar(x=[pos_tomorrow], y=[(base_price_tomorrow * (v_pct/100)) * 2], base=base_price_tomorrow * (1 - v_pct/100), name=f'{label} (내일예측)', marker=dict(color=color.replace('0.15', '0.6').replace('0.2', '0.6'), line=dict(width=0)), width=0.8, offsetgroup=model_key), row=1, col=1)
                 fig.add_trace(go.Bar(x=[pos_today], y=[(base_price_today_overlay * (v_pct/100)) * 2], base=base_price_today_overlay * (1 - v_pct/100), name=f'{label} (어제예측)', marker=dict(color=color, line=dict(width=0)), width=0.8, offsetgroup=model_key, showlegend=False), row=1, col=1)
 
-    # 모델별 점 스타일
     model_styles = {'rk4': {'color': '#FFD700', 'symbol': 'diamond'}, 'euler': {'color': '#00FF00', 'symbol': 'circle'}, 'newton': {'color': '#FF00FF', 'symbol': 'x'}, 'simpson': {'color': '#00FFFF', 'symbol': 'star'}}
     for m_key, m_val in predictions.items():
         if config['models'].get(m_key):
             style = model_styles.get(m_key, {'color': 'white', 'symbol': 'circle'})
             fig.add_trace(go.Scatter(x=[pos_tomorrow], y=[m_val], mode='markers+text', name=f'{m_key.upper()} 예측가', marker=dict(size=12, color=style['color'], symbol=style['symbol'], line=dict(width=1.5, color='white')), text=[f"{m_val:,.0f}"], textposition="top center", textfont=dict(color=style['color'], size=11)), row=1, col=1)
 
-    # 3. 캔들스틱
     fig.add_trace(go.Candlestick(x=x_labels, open=view_df['시가'], high=view_df['고가'], low=view_df['저가'], close=view_df['종가'], name="캔들"), row=1, col=1)
 
-    # 4. 보조 지표 (RSI, MA, BB)
     if config.get('show_rsi'):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['RSI'], name="RSI", line=dict(color='#FFD700', width=1.5)), row=2, col=1)
     
@@ -65,7 +60,6 @@ def draw_chart(df, config, vol_results=None, predictions=None):
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_U'], name="BB상단", line=dict(width=1, color='gray')), row=1, col=1)
         fig.add_trace(go.Scatter(x=x_labels, y=view_df['BB_L'], name="BB하단", line=dict(width=1, color='gray'), fill='tonexty'), row=1, col=1)
 
-    # 7. 분석 범위 강조
     target_date_obj = config.get('target_date')
     if target_date_obj:
         target_date_str = target_date_obj.strftime('%Y-%m-%d')
@@ -74,13 +68,11 @@ def draw_chart(df, config, vol_results=None, predictions=None):
             if target_idx > 0:
                 fig.add_vrect(x0=x_labels[0], x1=x_labels[target_idx-1], fillcolor="rgba(173, 216, 230, 0.2)", opacity=0.3, layer="below", line_width=0, row=1, col=1)
 
-    # AI의 과거 예측 기록 (X표시와 초록색 별)
     if 'history' in st.session_state and len(st.session_state.history) > 0:
         hist_df = pd.DataFrame(st.session_state.history)
         hist_df['date_str'] = pd.to_datetime(hist_df['date']).dt.strftime('%Y-%m-%d')
         plot_hist = hist_df[hist_df['date_str'].isin(extended_x_labels)]
         
-        # 1. 매수 진입 구간 - 초록색 별
         if 'is_buy' in plot_hist.columns:
             buy_df = plot_hist[plot_hist['is_buy'] == True]
             if not buy_df.empty:
@@ -90,7 +82,7 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                     marker=dict(size=12, color='#00C805', symbol='star', line=dict(width=1, color='white'))
                 ), row=1, col=1)
 
-            # 2. 관망 구간 - 흐린 회색 X
+
             watch_df = plot_hist[plot_hist['is_buy'] == False]
             if not watch_df.empty:
                 fig.add_trace(go.Scatter(
@@ -99,21 +91,21 @@ def draw_chart(df, config, vol_results=None, predictions=None):
                     marker=dict(size=7, color='rgba(150, 150, 150, 0.5)', symbol='x')
                 ), row=1, col=1)
         else:
-            # 아직 데이터가 갱신되지 않은 경우 기본 빨간 X 표시
+
             fig.add_trace(go.Scatter(
                 x=plot_hist['date_str'], y=plot_hist['pred'],
                 mode='markers', name="예측 (데이터 갱신 필요)",
                 marker=dict(size=8, color='#FF4B4B', symbol='x')
             ), row=1, col=1)
 
-        # 3. 예측 흐름 점선 (전체 흐름 파악용)
+
         fig.add_trace(go.Scatter(
             x=plot_hist['date_str'], y=plot_hist['pred'],
             mode='lines', name="예측 추세",
             line=dict(color='rgba(255, 75, 75, 0.2)', dash='dot', width=1),
             showlegend=False
         ), row=1, col=1)
-    # 8. 레이아웃 최종 업데이트
+
     fig.update_layout(
         template="plotly_dark", height=600, margin=dict(l=10,r=10,t=10,b=10),
         barmode='overlay', showlegend=True, xaxis_rangeslider_visible=False,
