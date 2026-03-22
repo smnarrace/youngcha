@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# 1. 하이브리드 모델 입력 데이터 변환
 def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=60):
     if '등락률' not in df.columns:
         df['등락률'] = df['종가'].pct_change() * 100
@@ -38,7 +37,6 @@ def prepare_hybrid_input(df, target_idx, vol_results, predictions, window_size=6
     except Exception as e:
         return None, None, 0, 0, 0
 
-# 2. 메인 결과 렌더링 함수
 def render_results(df, config, vol_results=None, predictions=None):
     st.subheader(f"🎯 AI 분석 리포트 (Dynamic v3)")
     target_date_ts = pd.Timestamp(config['target_date']).normalize()
@@ -86,21 +84,18 @@ def render_results(df, config, vol_results=None, predictions=None):
                     
                     st.markdown("### 📋 종목 분석 리포트")
                     
-                    # 1. AI 상승 확률 (10~95% 스케일링)
                     up_prob = min(max(50 + (final_pred_pct * 15), 10), 95)
                     prob_color = "#00C805" if up_prob >= 50 else "#FF4B4B"
                     
                     st.markdown(f"**AI 상승 확률:** <span style='color:{prob_color}; font-size:1.3em; font-weight:bold;'>{up_prob:.0f}%</span>", unsafe_allow_html=True)
                     st.write("") 
                     
-                    # 2. 예측 근거 (수치 + 해석)
                     vol_change = df.iloc[target_idx].get('거래량_변동률', 0)
                     rsi_val = df.iloc[target_idx].get('RSI', 50)
                     egarch_val = vol_results.get('egarch', 0) if vol_results else 0
                     
                     reasons = []
                     
-                    # (1) 거래량 지표
                     if vol_change > 50:
                         reasons.append(f"**거래량 급증 ({vol_change:+.0f}%):** 전일 대비 거래량이 크게 늘어나며 새로운 매수 자금이 유입되는 패턴이 포착되었습니다.")
                     elif vol_change < -30:
@@ -108,7 +103,6 @@ def render_results(df, config, vol_results=None, predictions=None):
                     else:
                         reasons.append(f"**거래량 안정 유지:** 평소 수준의 거래량을 유지하며 기존의 가격 추세를 탄탄하게 지지하고 있습니다.")
                         
-                    # (2) 변동성/RSI 지표
                     if egarch_val < 5.0 and rsi_val < 40:
                         reasons.append(f"**반등 에너지 축적 (RSI {rsi_val:.1f}):** 주가가 바닥을 다지고 다시 상승할 수 있는 에너지가 충분히 모인 상태입니다.")
                     elif rsi_val > 65:
@@ -116,7 +110,6 @@ def render_results(df, config, vol_results=None, predictions=None):
                     else:
                         reasons.append(f"**안정적 수급 (RSI {rsi_val:.1f}):** 시장이 과열되거나 침체되지 않고 정상적인 수급 흐름을 보이고 있습니다.")
                         
-                    # (3) 역학 지표 (선행 신호)
                     if w_rk4 > 0.4:
                         reasons.append(f"**단기 가속도 진입 (RK4 비중 {w_rk4*100:.0f}%):** 알고리즘 분석 결과, 주가가 일시적으로 강하게 튀어 오를 수 있는 가속도 구간에 진입했습니다.")
                     elif w_newton > 0.4:
@@ -130,7 +123,6 @@ def render_results(df, config, vol_results=None, predictions=None):
                         
                     st.write("")
 
-                    # 3. 리스크 요인 (수치 + 해석)
                     risks = []
                     if egarch_val > 10.0:
                         risks.append(f"**돌발 하락 주의 (EGARCH {egarch_val:.1f}):** 변동성이 커져 있어, 작은 악재에도 주가가 크게 흔들릴 수 있는 불안정한 상태입니다.")
@@ -154,7 +146,6 @@ def render_results(df, config, vol_results=None, predictions=None):
             else:
                 st.info("💡 과거 데이터 부족으로 AI 분석이 불가능합니다.")
 
-# [수익성 검증 시각화 함수]
 def render_performance_visuals():
     hist_df = pd.DataFrame(st.session_state.history).sort_values("date")
     
