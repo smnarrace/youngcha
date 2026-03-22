@@ -1,11 +1,8 @@
 name: Keep Streamlit App Awake
 
-
 on:
   schedule:
-
-    - cron: '*/10 * * * *'
-
+    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,5 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Streamlit App
-
-        run: curl -f -s -o /dev/null "https://youngcha.streamlit.app"
+        run: |
+          curl -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -L "https://youngcha.streamlit.app"
+          curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "https://youngcha.streamlit.app/_stcore/health"
