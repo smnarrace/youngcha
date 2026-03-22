@@ -6,7 +6,6 @@ from arch import arch_model
 import pyupbit
 import datetime
 
-# 1. 수치 해석 모델 (Numerical Analysis)
 def get_numerical_analysis(prices, h=1):
     if len(prices) < 10:
         return {"euler": prices[-1], "rk4": prices[-1], "newton": prices[-1], "simpson": 0}
@@ -32,7 +31,6 @@ def get_numerical_analysis(prices, h=1):
     
     return {"euler": taylor_2nd, "rk4": rk4_val, "newton": newton_val, "simpson": simpson_adj}
 
-# 2. 기술적 지표 계산 (Technical Indicators)
 def calculate_indicators(df):
     df['MA20'] = df['종가'].rolling(window=20).mean()
     std = df['종가'].rolling(window=20).std()
@@ -54,7 +52,6 @@ def calculate_indicators(df):
     
     return df
 
-# 3. 가상화폐 티커 확보
 @st.cache_data
 def get_coin_tickers():
     try:
@@ -63,7 +60,6 @@ def get_coin_tickers():
     except Exception:
         return {"BTC": "KRW-BTC"}
 
-# 4. 주식 종목 리스트 확보
 @st.cache_data(ttl=86400) 
 def get_tickers():
     search_dt = datetime.datetime.now()
@@ -98,7 +94,6 @@ def get_tickers():
         "에코프로": "086520", "HLB": "028300", "한일시멘트": "300720", "테크윙": "089030"
     }
 
-# 5. 변동성 모델 (GARCH Family)
 def get_volatility_models(prices):
     prices = np.where(prices <= 0, 1e-9, prices)
     returns = np.diff(np.log(prices)) * 100
