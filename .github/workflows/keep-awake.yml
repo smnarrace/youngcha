@@ -2,8 +2,6 @@ name: Keep Streamlit App Awake
 
 on:
   schedule:
-    # 15분 주기는 너무 잦아 GitHub Actions 무료 시간을 낭비하거나 
-    # Streamlit 측에서 봇으로 차단할 확률이 높습니다. 12시간 주기로 충분합니다.
     - cron: '0 */12 * * *' 
   workflow_dispatch:
 
@@ -32,7 +30,7 @@ jobs:
               page = browser.new_page()
               print('Visiting Youngcha app...')
               page.goto('https://youngcha.streamlit.app/')
-              # 페이지가 렌더링되고 웹소켓이 연결될 수 있도록 5초간 대기
+              
               page.wait_for_timeout(5000) 
               print('Successfully pinged and waited.')
               browser.close()
