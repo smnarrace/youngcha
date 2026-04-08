@@ -2,13 +2,38 @@ name: Keep Streamlit App Awake
 
 on:
   schedule:
-    - cron: '*/15 * * * *' 
-  workflow_dispatch: 
+    # 15분 주기는 너무 잦아 GitHub Actions 무료 시간을 낭비하거나 
+    # Streamlit 측에서 봇으로 차단할 확률이 높습니다. 12시간 주기로 충분합니다.
+    - cron: '0 */12 * * *' 
+  workflow_dispatch:
 
 jobs:
-  ping:
+  keep-awake:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit Health Check
-        run: | 
-          curl -s -o /dev/null -I -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://youngcha.streamlit.app/_stcore/health"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install chromium
+
+      - name: Visit Streamlit App
+        run: |
+          python -c "
+          from playwright.sync_api import sync_playwright
+          
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              print('Visiting Youngcha app...')
+              page.goto('https://youngcha.streamlit.app/')
+              # 페이지가 렌더링되고 웹소켓이 연결될 수 있도록 5초간 대기
+              page.wait_for_timeout(5000) 
+              print('Successfully pinged and waited.')
+              browser.close()
+          "
